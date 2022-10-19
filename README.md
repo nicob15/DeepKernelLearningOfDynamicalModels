@@ -4,11 +4,7 @@ Code accompanying the paper:
 
 **Deep Kernel Learning of Dynamical Models from High-Dimensional Noisy Data**\
 Nicolò Botteghi, Mengwu Guo, Christoph Brune,
-The can be found at: [Link](https://ieeexplore.ieee.org/abstract/document/9635936).
-
-**Low Dimensional State Representation Learning with Reward-Shaped Priors**\
-Nicolò Botteghi, Ruben Obbink, Daan Geijs, Mannes Poel, Beril Sirmacek, Christoph Brune, Abeje Mersha, Stefano Stramigioli
-The full paper, published at ICPR-2021, can be found at: [Link](https://arxiv.org/pdf/2208.12975.pdf)
+The can be found at: [Link](https://arxiv.org/pdf/2208.12975.pdf).
 
 **Framework**
 ![alt text](Figure_1.png)
