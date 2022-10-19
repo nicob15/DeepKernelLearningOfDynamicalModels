@@ -1,1 +1,1 @@
-# DeepKernelLearning_DynamicalModels
+# Deep Kernel Learning of Dynamical Models
