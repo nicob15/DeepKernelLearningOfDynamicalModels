@@ -6,7 +6,6 @@ Code accompanying the paper:
 Nicolò Botteghi, Mengwu Guo, Christoph Brune,
 The can be found at: [Link](https://arxiv.org/pdf/2208.12975.pdf).
 
-**Framework**
 ![alt text](Figure_1.png)
 
 **Abstract:** 
