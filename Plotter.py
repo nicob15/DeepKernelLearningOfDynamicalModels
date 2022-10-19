@@ -183,7 +183,7 @@ def make_reconstructions_plots(model, likelihood, test_loader, exp, mtype, det_d
             sample, mu, log_var, z, _, _, _, _, _, _ = model(input.cuda(), input2.cuda(), input3.cuda())
         else:
             mu_x, log_var_x, mu, log_var, z, _, _, _, _, _, _, _, _, _ = model(input.cuda(), input2.cuda(),
-                                                                               input3.cuda(), likelihood)
+                                                                               input3.cuda())
             sample = mu_x
 
     true_frame = input[:, 3:6, :, :]
@@ -205,8 +205,8 @@ def make_reconstructions_plots(model, likelihood, test_loader, exp, mtype, det_d
 def plot_results(model, likelihood, likelihood_fwd, test_loader, exp, mtype, latent_dim, det_dec=False, noise_level=0.0,
                  PCA=False, state_dim=1, obs_dim_1=84, obs_dim_2=84, num_samples_plot=5, batch_size=50):
 
-
-    make_reconstructions_predictions_plots(model, likelihood, likelihood_fwd, test_loader, exp, mtype,
+    if mtype == 'DKL':
+        make_reconstructions_predictions_plots(model, likelihood, likelihood_fwd, test_loader, exp, mtype,
                                            noise_level=noise_level, obs_dim_1=obs_dim_1, obs_dim_2=obs_dim_2)
 
     make_reconstructions_plots(model, likelihood, test_loader, exp, mtype, det_dec=False, noise_level=noise_level,
@@ -296,26 +296,52 @@ def plot_results(model, likelihood, likelihood_fwd, test_loader, exp, mtype, lat
         else:
 
             if det_dec:
-                _, mu, std, z, _, _, _, _, mu_r, std_r = model(torch.from_numpy(data['obs1']).permute(0, 3, 1, 2).cuda(),
+                _, mu, std, z, _, _, _, _, _, _ = model(torch.from_numpy(data['obs1']).permute(0, 3, 1, 2).cuda(),
                                                        torch.from_numpy(data['acts']).cuda(),
                                                        torch.from_numpy(data['obs2']).permute(0, 3, 1, 2).cuda())
             else:
-                _, _, mu, std, z, mu_target, std_target, z_target, mu_fwd, std_fwd, z_fwd, mu_r, std_r, _ = model(
+                _, _, mu, std, z, _, _, _, mu_fwd, std_fwd, z_fwd, _, _, _ = model(
                     torch.from_numpy(data['obs1']).permute(0, 3, 1, 2).cuda(),
                     torch.from_numpy(data['acts']).cuda(),
                     torch.from_numpy(data['obs2']).permute(0, 3, 1, 2).cuda())
-                var_r = torch.square(std_r)
-                var_target = torch.square(std_target)
-                var_fwd = torch.square(std_fwd)
+                std = std.detach()
+                mu = mu.detach()
+                z = z.detach()
+                mu_fwd = mu_fwd.detach()
+                std_fwd = std_fwd.detach()
+                z_fwd_l = z_fwd.detach()
+                var_fwd = torch.square(std_fwd.detach())
+                lower = mu - std
+                upper = mu + std
+                lower_znext = mu_fwd - std_fwd
+                upper_znext = mu_fwd + std_fwd
 
-            var_list.append(torch.square(std).cpu().numpy())
+                z_y = z
+                z_fwd_var_l = var_fwd
+                var_y = torch.square(std)
+
+                for i in range(n_samp):
+                    _, _, _, _, z_m, _, _, _, _, _, z_fwd_m, _, _, _ = model(
+                        torch.from_numpy(data['obs1']).permute(0, 3, 1, 2).cuda(),
+                        torch.from_numpy(data['acts']).cuda(),
+                        torch.from_numpy(data['obs2']).permute(0, 3, 1, 2).cuda())
+
+                    p_y_samples_list.append(z_m.detach().cpu().numpy())
+                    z_fwd_l_samples_list.append(z_fwd_m.detach().cpu().numpy())
+
+                z_y_samples = np.array(p_y_samples_list).reshape(batch_size * n_samp, latent_dim)
+                p_y_samples_list = []
+                z_fwd_y_samples = np.array(z_fwd_l_samples_list).reshape(batch_size * n_samp, latent_dim)
+                z_fwd_l_samples_list = []
+
+                var_list.append(torch.square(std).cpu().numpy())
 
 
         state_list.append(data['states'])
         next_state_list.append(data['next_states'])
         mu_list.append(mu.cpu().numpy())
         z_list.append(z.cpu().numpy())
-        mu_y_list.append(mu_y.cpu().numpy())
+        #mu_y_list.append(mu_y.cpu().numpy())
         mu_fwd_list.append(mu_fwd.cpu().numpy())
         var_fwd_list.append(var_fwd.cpu().numpy())
         z_fwd_lik_list.append(z_fwd_l.cpu().numpy())
@@ -360,7 +386,7 @@ def plot_results(model, likelihood, likelihood_fwd, test_loader, exp, mtype, lat
         mu_fwd_2D = TSNE(n_components=2, learning_rate='auto', init='pca').fit_transform(
             normalize(np.array(mu_fwd_list).reshape(num_data_sampled, latent_dim)))
 
-        var_y = TSNE(n_components=3, learning_rate='auto', init='pca').fit_transform(normalize(np.array(var_y_list).reshape(num_data_sampled, latent_dim)))
+        #var_y = TSNE(n_components=3, learning_rate='auto', init='pca').fit_transform(normalize(np.array(var_y_list).reshape(num_data_sampled, latent_dim)))
 
 
     z_y_samples = TSNE(n_components=3, learning_rate='auto', init='pca').fit_transform(np.array(z_y_samples_list).reshape(num_data_sampled*n_samp, latent_dim))
@@ -374,7 +400,7 @@ def plot_results(model, likelihood, likelihood_fwd, test_loader, exp, mtype, lat
 
     mu_z_norm = normalize(np.array(mu_list).reshape(num_data_sampled, latent_dim))
     mu_z = np.array(mu_list).reshape(num_data_sampled, latent_dim)
-    mu_y = np.array(mu_y_list).reshape(num_data_sampled, latent_dim)
+    #mu_y = np.array(mu_y_list).reshape(num_data_sampled, latent_dim)
 
     mu_znext_norm = normalize(np.array(mu_fwd_list).reshape(num_data_sampled, latent_dim))
     mu_znext = np.array(mu_fwd_list).reshape(num_data_sampled, latent_dim)

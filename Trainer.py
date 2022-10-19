@@ -347,7 +347,7 @@ def train_StochasticVAE(epoch, batch_size, nr_data, train_loader, model, optimiz
     train_loss = 0
     train_loss_vae = 0
     train_loss_fwd = 0
-    train_loss_rew = 0
+    #train_loss_rew = 0
     for i in range(int(nr_data/batch_size)):
         data = train_loader.sample_batch(batch_size)
         optimizer.zero_grad()
@@ -360,23 +360,23 @@ def train_StochasticVAE(epoch, batch_size, nr_data, train_loader, model, optimiz
 
         loss_vae = loss_negloglikelihood(mu_x, torch.from_numpy(data['obs1']).permute(0, 3, 1, 2).cuda(), torch.square(std_x), dim=3)
         loss_fwd = kl_divergence(mu_target, torch.square(std_target), mu_next, torch.square(std_next), dim=1)
-        loss_rew = loss_negloglikelihood(mu_r, torch.from_numpy(data['rews']).view(-1, 1).cuda(), torch.square(std_r), dim=1)
+        loss_rew = 0.0*loss_negloglikelihood(mu_r, torch.from_numpy(data['rews']).view(-1, 1).cuda(), torch.square(std_r), dim=1)
 
         beta = 1#beta_scheduler(epoch, max_epoch)
 
-        loss_t = loss_vae + beta * loss_fwd + loss_rew
+        loss_t = loss_vae + beta * loss_fwd #+ loss_rew
 
         loss_t.backward()
         train_loss += loss_t.item()
         train_loss_vae += loss_vae.item()
         train_loss_fwd += loss_fwd.item()
-        train_loss_rew += loss_rew.item()
+        #train_loss_rew += loss_rew.item()
         optimizer.step()
 
     print('====> Epoch: {} Average loss: {:.4f}'.format(epoch, train_loss / nr_data))
     print('====> Epoch: {} Average VAE loss: {:.4f}'.format(epoch, train_loss_vae / nr_data))
     print('====> Epoch: {} Average FWD loss: {:.4f}'.format(epoch, train_loss_fwd / nr_data))
-    print('====> Epoch: {} Average REW loss: {:.4f}'.format(epoch, train_loss_rew / nr_data))
+    #print('====> Epoch: {} Average REW loss: {:.4f}'.format(epoch, train_loss_rew / nr_data))
 
 
 

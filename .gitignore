@@ -5,6 +5,12 @@ __pycache__/
 
 *.xml
 *.iml
+*.txt
+*.sbatch
+*.sbatch~
+*.pth
+logs/
+Results/
 
 Data/
 Figures/

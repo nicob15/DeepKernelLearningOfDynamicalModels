@@ -35,7 +35,7 @@ parser.add_argument('--reg_coefficient', type=float, default=1e-2,
 
 parser.add_argument('--training', default=True,
                     help='Train the models.')
-parser.add_argument('--plotting', default=True,
+parser.add_argument('--plotting', default=False,
                     help='Plot the results.')
 parser.add_argument('--num-samples-plot', type=int, default=5,
                     help='Number of independent sampling from the distribution.')
@@ -192,16 +192,6 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
                           add_gaussian_noise(dt[3] / 255, noise_level=noise_level, clip=True).astype('float32'),
                           dt[4], dt[5].astype('float32'))
 
-    #model.eval()
-    #likelihood.eval()
-    #likelihood_fwd.eval()
-    #with torch.no_grad(), gpytorch.settings.use_toeplitz(False), gpytorch.settings.fast_pred_var(), \
-    #        gpytorch.settings.cholesky_jitter(1e-1):
-    #    plot_results(model=model, likelihood=likelihood, likelihood_fwd=likelihood_fwd,
-    #                 test_loader=test_loader, exp=exp, mtype=mtype, latent_dim=latent_dim,
-    #                 noise_level=noise_level, state_dim=state_dim, obs_dim_1=obs_dim_1,
-    #                 obs_dim_2=obs_dim_2, num_samples_plot=num_samples_plot, batch_size=batch_size)
-
     if training:
         for epoch in range(1, max_epoch):
             with gpytorch.settings.cholesky_jitter(1e-1):
@@ -211,16 +201,16 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
             if epoch % log_interval == 0:
                 torch.save({'model': model.state_dict(), 'likelihood': likelihood.state_dict(),
                             'likelihood_fwd': likelihood_fwd.state_dict()}, './DKL_Model.pth')
-                if plotting:
-                    model.eval()
-                    likelihood.eval()
-                    likelihood_fwd.eval()
-                    with torch.no_grad(), gpytorch.settings.use_toeplitz(False), gpytorch.settings.fast_pred_var(), \
-                            gpytorch.settings.cholesky_jitter(1e-1):
-                        plot_results(model=model, likelihood=likelihood, likelihood_fwd=likelihood_fwd,
-                                     test_loader=test_loader, exp=exp, mtype=mtype,latent_dim=latent_dim,
-                                     noise_level=noise_level, state_dim=state_dim, obs_dim_1=obs_dim_1,
-                                     obs_dim_2=obs_dim_2, num_samples_plot=num_samples_plot, batch_size=batch_size)
+                #if plotting:
+                #    model.eval()
+                #    likelihood.eval()
+                #    likelihood_fwd.eval()
+                #    with torch.no_grad(), gpytorch.settings.use_toeplitz(False), gpytorch.settings.fast_pred_var(), \
+                #            gpytorch.settings.cholesky_jitter(1e-1):
+                #        plot_results(model=model, likelihood=likelihood, likelihood_fwd=likelihood_fwd,
+                #                     test_loader=test_loader, exp=exp, mtype=mtype,latent_dim=latent_dim,
+                #                     noise_level=noise_level, state_dim=state_dim, obs_dim_1=obs_dim_1,
+                #                     obs_dim_2=obs_dim_2, num_samples_plot=num_samples_plot, batch_size=batch_size)
 
 
     torch.save({'model': model.state_dict(), 'likelihood': likelihood.state_dict(),
