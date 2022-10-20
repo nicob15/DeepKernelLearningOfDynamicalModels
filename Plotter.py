@@ -92,18 +92,31 @@ def make_reconstructions_predictions_plots(model, likelihood, likelihood_fwd, te
         # _, next_dist, _ = model.predict_dynamics(obs[0].view(1, 6, obs_dim_1, obs_dim_2).cuda(), act[0].view(1, 1).cuda())
         # next_dist_l = likelihood_fwd(next_dist)
         # sample[0] = model.decoder(next_dist_l.sample())
-        sample[0], sample_res_fwd[0] = model.predict_dynamics(x=obs[0].view(1, 6, obs_dim_1, obs_dim_2).cuda(),
-                                                         a=act[0].view(1, 1).cuda(),
-                                                         likelihood_fwd=likelihood_fwd, likelihood=likelihood)
-        for i in range(seq_len - 1):
-            #sample[i + 1], sample_res_fwd[i + 1] = model.predict_dynamics(
-            #    x=sample[i].view(1, 6, obs_dim_1, obs_dim_2).cuda(), a=act[i + 1].view(1, 1).cuda(),
-            #    likelihood_fwd=likelihood_fwd)
-            sample[i + 1], sample_res_fwd[i + 1] = model.predict_dynamics(
-                x=obs[i+1].view(1, 6, obs_dim_1, obs_dim_2).cuda(), a=act[i + 1].view(1, 1).cuda(),
-                likelihood_fwd=likelihood_fwd, likelihood=likelihood)
-        # model.predict_latent_dynamics(z.view(1, latent_dim), act[i+1].view(1, 1).cuda())
-        # sample = torch.from_numpy(sample)
+
+        if mtype == 'DKL':
+            sample[0], sample_res_fwd[0] = model.predict_dynamics(x=obs[0].view(1, 6, obs_dim_1, obs_dim_2).cuda(),
+                                                                  a=act[0].view(1, 1).cuda(),
+                                                                  likelihood_fwd=likelihood_fwd, likelihood=likelihood)
+
+            for i in range(seq_len - 1):
+                # sample[i + 1], sample_res_fwd[i + 1] = model.predict_dynamics(
+                #    x=sample[i].view(1, 6, obs_dim_1, obs_dim_2).cuda(), a=act[i + 1].view(1, 1).cuda(),
+                #    likelihood_fwd=likelihood_fwd)
+                sample[i + 1], sample_res_fwd[i + 1] = model.predict_dynamics(
+                    x=obs[i + 1].view(1, 6, obs_dim_1, obs_dim_2).cuda(), a=act[i + 1].view(1, 1).cuda(),
+                    likelihood_fwd=likelihood_fwd, likelihood=likelihood)
+
+        else:
+            sample[0], sample_res_fwd[0] = model.predict_dynamics(x=obs[0].view(1, 6, obs_dim_1, obs_dim_2).cuda(),
+                                                                  a=act[0].view(1, 1).cuda())
+            for i in range(seq_len - 1):
+                #sample[i + 1], sample_res_fwd[i + 1] = model.predict_dynamics(
+                #    x=sample[i].view(1, 6, obs_dim_1, obs_dim_2).cuda(), a=act[i + 1].view(1, 1).cuda(),
+                #    likelihood_fwd=likelihood_fwd)
+                sample[i + 1], sample_res_fwd[i + 1] = model.predict_dynamics(
+                    x=obs[i+1].view(1, 6, obs_dim_1, obs_dim_2).cuda(), a=act[i + 1].view(1, 1).cuda())
+            # model.predict_latent_dynamics(z.view(1, latent_dim), act[i+1].view(1, 1).cuda())
+            # sample = torch.from_numpy(sample)
 
         true_frame = obs2[:, 3:6, :, :]
         current_frame = sample[:, 3:6, :, :]
@@ -205,8 +218,8 @@ def make_reconstructions_plots(model, likelihood, test_loader, exp, mtype, det_d
 def plot_results(model, likelihood, likelihood_fwd, test_loader, exp, mtype, latent_dim, det_dec=False, noise_level=0.0,
                  PCA=False, state_dim=1, obs_dim_1=84, obs_dim_2=84, num_samples_plot=5, batch_size=50):
 
-    if mtype == 'DKL':
-        make_reconstructions_predictions_plots(model, likelihood, likelihood_fwd, test_loader, exp, mtype,
+
+    make_reconstructions_predictions_plots(model, likelihood, likelihood_fwd, test_loader, exp, mtype,
                                            noise_level=noise_level, obs_dim_1=obs_dim_1, obs_dim_2=obs_dim_2)
 
     make_reconstructions_plots(model, likelihood, test_loader, exp, mtype, det_dec=False, noise_level=noise_level,

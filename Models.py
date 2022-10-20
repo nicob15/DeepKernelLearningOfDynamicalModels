@@ -544,8 +544,9 @@ class ForwardModelVAE(nn.Module):
         za = F.elu(self.fc(za))
         za = F.elu(self.fc1(za))
         z_next_mu = self.fcmu(za)
-        z_next_std = torch.ones_like(z_next_mu).detach()
+        #z_next_std = torch.ones_like(z_next_mu).detach()
         #z_next_logvar = self.fcvar(za)
+        z_next_std = F.relu(z_next_mu) + 1e-3
         return z_next_mu, z_next_std
 
 class RewardModelVAE(nn.Module):
@@ -713,6 +714,21 @@ class StochasticVAE(nn.Module):
         z_r = self.sampling(mu_r, std_r)
         mu_x, std_x = self.decoder(z)
         return mu_x, std_x, mu, std, z, mu_target, std_target, z_target, mu_next, std_next, z_next, mu_r, std_r, z_r
+
+    def predict_dynamics(self, x, a):
+
+        n_samples = 10
+
+        _, _, z = self.encoder(x)
+
+        mu_next, std_next = self.fwd_model(z, a)
+        z_next = self.sampling(mu_next, std_next)
+
+        mu_x, _ = self.decoder(z)
+
+        mu_x_2, _ = self.decoder(z_next)
+
+        return mu_x, mu_x_2
 
 class VAE(nn.Module):
     def __init__(self, z_dim, h_dim, a_dim):
