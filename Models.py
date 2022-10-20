@@ -544,9 +544,9 @@ class ForwardModelVAE(nn.Module):
         za = F.elu(self.fc(za))
         za = F.elu(self.fc1(za))
         z_next_mu = self.fcmu(za)
-        #z_next_std = torch.ones_like(z_next_mu).detach()
+        z_next_std = torch.ones_like(z_next_mu).detach()
         #z_next_logvar = self.fcvar(za)
-        z_next_std = F.relu(z_next_mu) + 1e-3
+        #z_next_std = F.relu(z_next_mu) + 1e-3
         return z_next_mu, z_next_std
 
 class RewardModelVAE(nn.Module):
