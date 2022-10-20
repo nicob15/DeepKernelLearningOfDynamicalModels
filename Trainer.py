@@ -12,7 +12,7 @@ def beta_scheduler(epoch, max_epoch, R=0.5, M=1):
     return beta
 
 def train_DKL(epoch, batch_size, nr_data, train_loader, model, likelihood, likelihood_fwd, optimizer,
-              max_epoch, variational_kl_term, variational_kl_term_fwd):
+              max_epoch, variational_kl_term, variational_kl_term_fwd, k1=1, k2=2):
     mll = gpytorch.mlls.VariationalELBO(likelihood_fwd, model.fwd_model_DKL.gp_layer_2, num_data=nr_data,
                                         combine_terms=False)
     #mll2 = gpytorch.mlls.VariationalELBO(likelihood_rew, model.rew_model_DKL.gp_layer_3, num_data=nr_data,
@@ -68,7 +68,7 @@ def train_DKL(epoch, batch_size, nr_data, train_loader, model, likelihood, likel
             #res_fwd = likelihood_fwd(res_fwd)
             #res_rew = likelihood_rew(res_rew)
 
-        loss_vae = loss_negloglikelihood(mu_x, obs, var_x, dim=3)
+        loss_vae = k1 * loss_negloglikelihood(mu_x, obs, var_x, dim=3)
         #loss_vae_next = loss_negloglikelihood(mu_x_next, next_obs, var_x_next, dim=3)
         # + kl_divergence(mu, var_f, torch.zeros_like(mu), torch.ones_like(var), dim=1)
             #loss_fwd = loss_negloglikelihood(mu_next, z_target, var_next, dim=1)
@@ -97,7 +97,7 @@ def train_DKL(epoch, batch_size, nr_data, train_loader, model, likelihood, likel
             # coefficients =  1 - 1 - 1 - 1 - 1 - 1 (first 3 from dreamer paper, while last 3 may need tuning)
         beta = 1#beta_scheduler(epoch, max_epoch)
 
-        loss_fwd = beta * loss_fwd
+        loss_fwd = k2 * beta * loss_fwd
         lossvarKL_fwd = beta * lossvarKL_fwd
         log_prior_fwd = 0.0*beta * log_prior_fwd
         #loss_rew = 0.0*beta * loss_rew

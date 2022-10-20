@@ -12,6 +12,8 @@ from Models import DKLModel
 from VariationalTraining import VariationalKL
 from Trainer import train_DKL as train
 
+from modified_gaussian_likelihood import GaussianLikelihood
+
 import gc
 
 import argparse
@@ -32,6 +34,10 @@ parser.add_argument('--learning-rate-gp-lik', type=float, default=1e-2,
                     help='Learning rate GP likelihood.')
 parser.add_argument('--reg_coefficient', type=float, default=1e-2,
                     help='L2 regularization coefficient.')
+parser.add_argument('--coefficient_recon_loss', type=float, default=1.0,
+                    help='Coefficient reconstrustruction loss.')
+parser.add_argument('--coefficient_fwd_kl_loss', type=float, default=1.0,
+                    help='Coefficient KL-divergence forward loss.')
 
 parser.add_argument('--training', default=True,
                     help='Train the models.')
@@ -102,6 +108,8 @@ lr_gp = args.learning_rate_gp
 lr_gp_var = args.learning_rate_gp_var
 lr_gp_lik = args.learning_rate_gp_lik
 reg_coef = args.reg_coefficient
+k1 = args.coefficient_recon_loss
+k2 = args.coefficient_fwd_kl_loss
 
 # build model
 latent_dim = args.latent_state_dim
@@ -141,8 +149,11 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
 
     model = DKLModel(num_dim=latent_dim, a_dim=act_dim, h_dim=h_dim, exp=exp)
 
-    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim)
-    likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim)
+    #likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim)
+    #likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim)
+
+    likelihood = GaussianLikelihood()
+    likelihood_fwd = GaussianLikelihood()
 
     variational_kl_term = VariationalKL(likelihood, model.gp_layer, num_data=len(data))
     variational_kl_term_fwd = VariationalKL(likelihood_fwd, model.fwd_model_DKL.gp_layer_2, num_data=len(data))
@@ -196,7 +207,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         for epoch in range(1, max_epoch):
             with gpytorch.settings.cholesky_jitter(1e-1):
                 train(epoch, batch_size, counter, train_loader, model, likelihood, likelihood_fwd,
-                    optimizer, max_epoch, variational_kl_term, variational_kl_term_fwd)
+                    optimizer, max_epoch, variational_kl_term, variational_kl_term_fwd, k1, k2)
 
             if epoch % log_interval == 0:
                 torch.save({'model': model.state_dict(), 'likelihood': likelihood.state_dict(),
