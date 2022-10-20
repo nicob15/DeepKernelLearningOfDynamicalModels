@@ -239,7 +239,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
 
 if __name__ == "__main__":
 
-    #with gpytorch.settings.use_toeplitz(False), gpytorch.settings.fast_pred_var():
-    main(exp=exp, mtype=mtype, noise_level=noise_level, training_dataset=training_dataset,
-         testing_dataset=testing_dataset)
+    with gpytorch.settings.use_toeplitz(False):#, gpytorch.settings.fast_pred_var():
+        main(exp=exp, mtype=mtype, noise_level=noise_level, training_dataset=training_dataset,
+             testing_dataset=testing_dataset)
     print('Finished Training the Representation Model!')
