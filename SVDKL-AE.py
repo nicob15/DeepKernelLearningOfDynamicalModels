@@ -163,8 +163,8 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     #likelihood = GaussianLikelihood()
     #likelihood_fwd = GaussianLikelihood()
 
-    variational_kl_term = VariationalKL(likelihood, model.gp_layer, num_data=batch_size)
-    variational_kl_term_fwd = VariationalKL(likelihood_fwd, model.fwd_model_DKL.gp_layer_2, num_data=batch_size)
+    variational_kl_term = VariationalKL(likelihood, model.gp_layer, num_data=len(data))
+    variational_kl_term_fwd = VariationalKL(likelihood_fwd, model.fwd_model_DKL.gp_layer_2, num_data=len(data))
 
     # If you run this example without CUDA, I hope you like waiting!
     if torch.cuda.is_available():
@@ -236,7 +236,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
 
 
     torch.save({'model': model.state_dict(), 'likelihood': likelihood.state_dict(),
-                'likelihood_fwd': likelihood_fwd.state_dict()}, './DKL_Model.pth')
+                'likelihood_fwd': likelihood_fwd.state_dict()}, './DKL_Model_'+ date_string+'.pth')
 
     model.eval()
     likelihood.eval()
