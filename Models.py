@@ -156,25 +156,45 @@ class DKLModel(gpytorch.Module):
             res = mu
 
         #mu_x, var_x = self.decoder(likelihood_fwd(res_fwd).sample())
-        mu_x = self.decoder(likelihood_fwd(res_fwd).sample(sample_shape=torch.Size([n_samples])).view(n_samples, self.num_dim))[0].mean(0)
+        mu_x = self.decoder(likelihood(res).sample(sample_shape=torch.Size([n_samples])).view(n_samples, self.num_dim))[0].mean(0)
 
-        mu_x_2 = self.decoder(res_fwd.sample(sample_shape=torch.Size([n_samples])).view(n_samples, self.num_dim))[0].mean(0)
+        mu_x_2 = self.decoder(likelihood_fwd(res_fwd).sample(sample_shape=torch.Size([n_samples])).view(n_samples, self.num_dim))[0].mean(0)
 
         return mu_x, mu_x_2
 
-    def predict_latent_dynamics(self, z, a):
+    def predict_trajectory(self, x, a, likelihood_fwd, likelihood):
+
+        n_samples = 1
+        res, mu, var, z = self.forward_DKL(x)
+        z = likelihood(res).sample(sample_shape=torch.Size([n_samples])).view(n_samples, self.num_dim).mean(0).view(1, self.num_dim)
+        # predicted distribution
+        res_fwd, mu_fwd, var_fwd, z_fwd = self.fwd_model_DKL(z, a, mu, var)
+
+        lower, upper = likelihood(res).confidence_region()
+        lower_fwd, upper_fwd = likelihood_fwd(res_fwd).confidence_region()
+
+        mu_x = self.decoder(likelihood(res).sample(sample_shape=torch.Size([n_samples])).view(n_samples, self.num_dim))[0].mean(0)
+
+        mu_x_2 = self.decoder(likelihood_fwd(res_fwd).sample(sample_shape=torch.Size([n_samples])).view(n_samples, self.num_dim))[0].mean(0)
+
+        return mu, mu_fwd, lower, upper, lower_fwd, upper_fwd, mu_x, mu_x_2, z
+
+    def predict_latent_dynamics(self, z, a, likelihood_fwd):
 
         if self.e_type == 'DKL':
+            n_samples = 1
             # predicted distribution
             mu = 1
             var = 1
             res_fwd, mu_fwd, var_fwd, z_fwd = self.fwd_model_DKL(z, a, mu, var)
+            lower, upper = likelihood_fwd(res_fwd).confidence_region()
+            z_fwd = likelihood_fwd(res_fwd).sample()
         else:
             pass
 
         mu_x, var_x = self.decoder(z_fwd)
 
-        return mu_x, z_fwd
+        return mu_x, mu_fwd, lower, upper, z_fwd
 
 class simpleDKL(gpytorch.Module):
     def __init__(self, num_dim, grid_bounds=(-100., 100.), a_dim=1, h_dim=32):
@@ -729,6 +749,42 @@ class StochasticVAE(nn.Module):
         mu_x_2, _ = self.decoder(z_next)
 
         return mu_x, mu_x_2
+
+
+    def predict_trajectory(self, x, a):
+
+        n_samples = 1
+
+        mu, std, z = self.encoder(x)
+        mu_fwd, std_next = self.fwd_model(z, a)
+        z_fwd = self.sampling(mu_fwd, std_next)
+
+        lower, upper = mu - std, mu + std
+        lower_fwd, upper_fwd = mu_fwd - std, mu_fwd + std
+
+        mu_x, _ = self.decoder(z)
+
+        mu_x_2, _ = self.decoder(z_fwd)
+
+
+        return mu, mu_fwd, lower, upper, lower_fwd, upper_fwd, mu_x, mu_x, z
+
+    def predict_latent_dynamics(self, z, a):
+
+
+        n_samples = 1
+        # predicted distribution
+
+        mu_fwd, std_fwd = self.fwd_model(z, a)
+        z_fwd = self.sampling(mu_fwd, std_fwd)
+
+        lower, upper = mu_fwd - std_fwd, mu_fwd + std_fwd
+
+
+
+        mu_x, var_x = self.decoder(z_fwd)
+
+        return mu_x, mu_fwd, lower, upper, z_fwd
 
 class VAE(nn.Module):
     def __init__(self, z_dim, h_dim, a_dim):

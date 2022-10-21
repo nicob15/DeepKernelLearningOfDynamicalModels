@@ -67,6 +67,268 @@ def plot_rewards(mean, std, name='Evaluation Reward', folder='Figures/', exp='Pe
 
     closeAll()
 
+def make_UQ_single_traj(model, likelihood, likelihood_fwd, test_loader, exp, mtype, noise_level=0.0,
+                                           obs_dim_1=84, obs_dim_2=84, latent_dim=20):
+    save_dir = results_dir + '/' + str(exp) + '/' + str(mtype) + '/Noise_level_' + str(
+        noise_level) + '/UQ_trajectory/'
+
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    dir1 = '/z/'
+    if not os.path.exists(save_dir+dir1):
+        os.makedirs(save_dir+dir1)
+
+    dir2 = '/next_z/'
+    if not os.path.exists(save_dir+dir2):
+        os.makedirs(save_dir+dir2)
+
+    dir3 = '/z_pred/'
+    if not os.path.exists(save_dir+dir3):
+        os.makedirs(save_dir+dir3)
+
+    dir4 = '/next_z_pred/'
+    if not os.path.exists(save_dir+dir4):
+        os.makedirs(save_dir+dir4)
+
+    dir5 = '/next_z_pred_latent/'
+    if not os.path.exists(save_dir+dir5):
+        os.makedirs(save_dir+dir5)
+
+
+    start_idx = [1]
+    seq_len = 16
+    for j in range(len(start_idx)):
+        data = test_loader.sample_sequence(start_idx=start_idx[j], seq_len=seq_len)
+        obs = torch.from_numpy(data['obs1']).permute(0, 3, 1, 2)
+        act = torch.from_numpy(data['acts'])
+        # obs2 = torch.from_numpy(data['obs2']).permute(0, 3, 1, 2)
+        mu = torch.zeros(seq_len, latent_dim)
+        mu_fwd = torch.zeros(seq_len, latent_dim)
+        mu_pred = torch.zeros(seq_len, latent_dim)
+        mu_fwd_pred = torch.zeros(seq_len, latent_dim)
+        mu_fwd_pred_2 = torch.zeros(seq_len, latent_dim)
+        lower = torch.zeros(seq_len, latent_dim)
+        upper = torch.zeros(seq_len, latent_dim)
+        lower_fwd = torch.zeros(seq_len, latent_dim)
+        upper_fwd = torch.zeros(seq_len, latent_dim)
+        lower_pred = torch.zeros(seq_len, latent_dim)
+        upper_pred = torch.zeros(seq_len, latent_dim)
+        lower_fwd_pred = torch.zeros(seq_len, latent_dim)
+        upper_fwd_pred = torch.zeros(seq_len, latent_dim)
+        lower_fwd_pred_2 = torch.zeros(seq_len, latent_dim)
+        upper_fwd_pred_2 = torch.zeros(seq_len, latent_dim)
+
+        if mtype == 'DKL':
+            mu[0], mu_fwd[0], lower[0], upper[0], lower_fwd[0], upper_fwd[0], mu_x, _, z = model.predict_trajectory(
+                x=obs[0].view(1, 6, obs_dim_1, obs_dim_2).cuda(),
+                a=act[0].view(1, 1).cuda(),
+                likelihood_fwd=likelihood_fwd, likelihood=likelihood)
+
+            _, mu_fwd_pred_2[0], lower_fwd_pred_2[0], upper_fwd_pred_2[0], z = model.predict_latent_dynamics(z,
+                                                          act[0].view(1, 1).cuda(),
+                                                          likelihood_fwd)
+
+            for i in range(seq_len - 1):
+                mu[i + 1], mu_fwd[i + 1], lower[i + 1], upper[i + 1], lower_fwd[i + 1], upper_fwd[
+                    i + 1], _, _, _ = model.predict_trajectory(
+                    x=obs[i + 1].view(1, 6, obs_dim_1, obs_dim_2).cuda(), a=act[i + 1].view(1, 1).cuda(),
+                    likelihood_fwd=likelihood_fwd, likelihood=likelihood)
+
+                mu_pred[i + 1], mu_fwd_pred[i + 1], lower_pred[i + 1], upper_pred[i + 1], lower_fwd_pred[i + 1], \
+                upper_fwd_pred[i + 1], mu_x, _, _ = model.predict_trajectory(
+                    x=mu_x.view(1, 6, obs_dim_1, obs_dim_2).cuda(), a=act[i + 1].view(1, 1).cuda(),
+                    likelihood_fwd=likelihood_fwd, likelihood=likelihood)
+
+                _, mu_fwd_pred_2[i+1], lower_fwd_pred_2[i+1], upper_fwd_pred_2[i+1], z = model.predict_latent_dynamics(z,
+                                                                                                        act[i + 1].view(1, 1).cuda(),
+                                                                                                        likelihood_fwd)
+
+        else:
+            mu[0], mu_fwd[0], lower[0], upper[0], lower_fwd[0], upper_fwd[0], mu_x, _, z = model.predict_trajectory(
+                x=obs[0].view(1, 6, obs_dim_1, obs_dim_2).cuda(),
+                a=act[0].view(1, 1).cuda())
+
+            _, mu_fwd_pred_2[0], lower_fwd_pred_2[0], upper_fwd_pred_2[0], z = model.predict_latent_dynamics(z,
+                                                                                                             act[
+                                                                                                                 0].view(
+                                                                                                                 1,
+                                                                                                                 1).cuda())
+
+            for i in range(seq_len - 1):
+                mu[i + 1], mu_fwd[i + 1], lower[i + 1], upper[i + 1], lower_fwd[i + 1], upper_fwd[
+                    i + 1], _, _, _ = model.predict_trajectory(
+                    x=obs[i + 1].view(1, 6, obs_dim_1, obs_dim_2).cuda(), a=act[i + 1].view(1, 1).cuda())
+
+                mu_pred[i + 1], mu_fwd_pred[i + 1], lower_pred[i + 1], upper_pred[i + 1], lower_fwd_pred[i + 1], \
+                upper_fwd_pred[i + 1], mu_x, _, _ = model.predict_trajectory(
+                    x=mu_x.view(1, 6, obs_dim_1, obs_dim_2).cuda(), a=act[i + 1].view(1, 1).cuda())
+
+                _, mu_fwd_pred_2[i + 1], lower_fwd_pred_2[i + 1], upper_fwd_pred_2[
+                    i + 1], z = model.predict_latent_dynamics(z,
+                                                              act[i + 1].view(1, 1).cuda())
+
+        mu = mu.detach().cpu().numpy()
+        mu_fwd = mu_fwd.detach().cpu().numpy()
+        mu_pred = mu_pred.detach().cpu().numpy()
+        mu_fwd_pred = mu_fwd_pred.detach().cpu().numpy()
+        mu_fwd_pred_2 = mu_fwd_pred_2.detach().cpu().numpy()
+        lower = lower.detach().cpu().numpy()
+        upper = upper.detach().cpu().numpy()
+        lower_fwd = lower_fwd.detach().cpu().numpy()
+        upper_fwd = upper_fwd.detach().cpu().numpy()
+        lower_pred = lower_pred.detach().cpu().numpy()
+        upper_pred = upper_pred.detach().cpu().numpy()
+        lower_fwd_pred = lower_fwd_pred.detach().cpu().numpy()
+        upper_fwd_pred = upper_fwd_pred.detach().cpu().numpy()
+        lower_fwd_pred_2 = lower_fwd_pred_2.detach().cpu().numpy()
+        upper_fwd_pred_2 = upper_fwd_pred_2.detach().cpu().numpy()
+
+
+        state = data['states']
+        next_state = data['next_states']
+        angle = np.arctan2(state[:, 1], state[:, 0])
+        next_angle = np.arctan2(next_state[:, 1], next_state[:, 0])
+
+        ang_idx = np.argsort(angle)
+        mu_sorted = mu[ang_idx]
+        angle_sorted = angle[ang_idx]
+        lower_sorted = lower[ang_idx]
+        upper_sorted = upper[ang_idx]
+
+        ang_next_idx = np.argsort(next_angle)
+        mu_fwd_sorted = mu_fwd[ang_next_idx]
+        next_angle_sorted = next_angle[ang_next_idx]
+        lower_fwd_sorted = lower_fwd[ang_next_idx]
+        upper_fwd_sorted = upper_fwd[ang_next_idx]
+
+        timestep = np.linspace(0, seq_len, angle.shape[0])
+
+        true_frame = obs[:, 3:6, :, :]
+        save_image(tensor=true_frame.view(seq_len, 3, obs_dim_1, obs_dim_2),
+                   fp=save_dir + str(mtype) + '_' + str(exp) + '_sequence_' + str(start_idx[j]) + '_current_frame_' +
+                   str(noise_level) + '.png')
+
+        #for i in range(latent_dim):
+        #    fig = plt.figure(dpi=300)
+        #    ax1 = fig.add_subplot()
+        #    p1 = ax1.scatter(angle_sorted[:], mu_sorted[:, i], c=angle_sorted[:], cmap='hsv', zorder=2, s=5)
+        #    ax1.fill_between(angle_sorted[:], lower_sorted[:, i], upper_sorted[:, i], color='gray', alpha=0.3)
+        #    cbar = fig.colorbar(p1)
+        #    cbar.set_label('angle', rotation=90)
+        #    plt.savefig(save_dir + dir1 + str(mtype) + '_' + str(exp) + '_traj_conf_bound_z_dim' + str(i) + '_' + str(
+        #        noise_level) + '_init_idx_' + str(start_idx) + '.png')
+        #    plt.close()
+
+        for i in range(latent_dim):
+            fig = plt.figure(dpi=300)
+            ax1 = fig.add_subplot()
+            plt.plot(timestep[:], mu[:, i], color='g')
+            p1 = ax1.scatter(timestep[:], mu[:, i], c=timestep[:], cmap='Greens', zorder=2, s=5)
+            ax1.fill_between(timestep[:], lower[:, i], upper[:, i], color='gray', alpha=0.3)
+            cbar = fig.colorbar(p1)
+            cbar.set_label('timesteps', rotation=90)
+            plt.savefig(save_dir + dir1 + str(mtype) + '_' + str(exp) + '_traj_conf_bound_z_dim_timesteps' + str(i) + '_' + str(
+                noise_level) + '_init_idx_' + str(start_idx) + '.png')
+            plt.close()
+
+        #for i in range(latent_dim):
+        #    fig = plt.figure(dpi=300)
+        #    ax1 = fig.add_subplot()
+        #    p1 = ax1.scatter(next_angle_sorted[:], mu_fwd_sorted[:, i], c=next_angle_sorted[:], cmap='hsv', zorder=2, s=5)
+        #    ax1.fill_between(next_angle_sorted[:], lower_fwd_sorted[:, i], upper_fwd_sorted[:, i], color='gray', alpha=0.3)
+        #    cbar = fig.colorbar(p1)
+        #    cbar.set_label('angle', rotation=90)
+        #    plt.savefig(save_dir + dir2 + str(mtype) + '_' + str(exp) + '_traj_conf_bound_next_z_dim' + str(i) + '_' + str(
+        #        noise_level) + '_init_idx_' + str(start_idx) + '.png')
+        #    plt.close()
+
+        for i in range(latent_dim):
+            fig = plt.figure(dpi=300)
+            ax1 = fig.add_subplot()
+            plt.plot(timestep[:], mu_fwd[:, i], color='g')
+            p1 = ax1.scatter(timestep[:], mu_fwd[:, i], c=timestep[:], cmap='Greens', zorder=2, s=5)
+            ax1.fill_between(timestep[:], lower_fwd[:, i], upper_fwd[:, i], color='gray', alpha=0.3)
+            cbar = fig.colorbar(p1)
+            cbar.set_label('timesteps', rotation=90)
+            plt.savefig(save_dir + dir2 + str(mtype) + '_' + str(exp) + '_traj_conf_bound_next_z_dim_timesteps' + str(i) + '_' + str(
+                noise_level) + '_init_idx_' + str(start_idx) + '.png')
+            plt.close()
+
+        #for i in range(latent_dim):
+        #    fig = plt.figure(dpi=300)
+        #    ax1 = fig.add_subplot()
+        #    p1 = ax1.scatter(angle[:], mu_pred[:, i], c=angle[:], cmap='hsv', zorder=2, s=5)
+        #    ax1.fill_between(angle[:], lower_pred[:, i], upper_pred[:, i], color='gray', alpha=0.3)
+        #    cbar = fig.colorbar(p1)
+        #    cbar.set_label('angle', rotation=90)
+        #    plt.savefig(save_dir + dir3 + str(mtype) + '_' + str(exp) + '_traj_pred_conf_bound_z_dim' + str(i) + '_' + str(
+        #        noise_level) + '_init_idx_' + str(start_idx) + '.png')
+        #    plt.close()
+
+        for i in range(latent_dim):
+            fig = plt.figure(dpi=300)
+            ax1 = fig.add_subplot()
+            plt.plot(timestep[:], mu_pred[:, i], color='g')
+            p1 = ax1.scatter(timestep[:], mu_pred[:, i], c=timestep[:], cmap='Greens', zorder=2, s=5)
+            ax1.fill_between(timestep[:], lower_pred[:, i], upper_pred[:, i], color='gray', alpha=0.3)
+            cbar = fig.colorbar(p1)
+            cbar.set_label('timesteps', rotation=90)
+            plt.savefig(save_dir + dir3 + str(mtype) + '_' + str(exp) + '_traj_pred_conf_bound_z_dim_timesteps' + str(i) + '_' + str(
+                noise_level) + '_init_idx_' + str(start_idx) + '.png')
+            plt.close()
+
+        #for i in range(latent_dim):
+        #    fig = plt.figure(dpi=300)
+        #    ax1 = fig.add_subplot()
+        #    p1 = ax1.scatter(next_angle[:], mu_fwd_pred[:, i], c=next_angle[:], cmap='hsv', zorder=2, s=5)
+        #    ax1.fill_between(next_angle[:], lower_fwd_pred[:, i], upper_fwd_pred[:, i], color='gray', alpha=0.3)
+        #    cbar = fig.colorbar(p1)
+        #    cbar.set_label('angle', rotation=90)
+        #    plt.savefig(
+        #        save_dir + dir4 + str(mtype) + '_' + str(exp) + '_traj_pred_conf_bound_next_z_dim' + str(i) + '_' + str(
+        #            noise_level) + '_init_idx_' + str(start_idx) + '.png')
+        #    plt.close()
+
+        for i in range(latent_dim):
+            fig = plt.figure(dpi=300)
+            ax1 = fig.add_subplot()
+            plt.plot(timestep[:], mu_fwd_pred[:, i], color='g')
+            p1 = ax1.scatter(timestep[:], mu_fwd_pred[:, i], c=timestep[:], cmap='Greens', zorder=2, s=5)
+            ax1.fill_between(timestep[:], lower_fwd_pred[:, i], upper_fwd_pred[:, i], color='gray', alpha=0.3)
+            cbar = fig.colorbar(p1)
+            cbar.set_label('timesteps', rotation=90)
+            plt.savefig(save_dir + dir4 + str(mtype) + '_' + str(exp) + '_traj_pred_conf_bound_next_z_dim_timesteps' + str(i) + '_' + str(
+                noise_level) + '_init_idx_' + str(start_idx) + '.png')
+            plt.close()
+
+        #for i in range(latent_dim):
+        #    fig = plt.figure(dpi=300)
+        #    ax1 = fig.add_subplot()
+        #    p1 = ax1.scatter(next_angle[:], mu_fwd_pred_2[:, i], c=next_angle[:], cmap='hsv', zorder=2, s=5)
+        #    ax1.fill_between(next_angle[:], lower_fwd_pred_2[:, i], upper_fwd_pred_2[:, i], color='gray', alpha=0.3)
+        #    cbar = fig.colorbar(p1)
+        #    cbar.set_label('angle', rotation=90)
+        #    plt.savefig(
+        #        save_dir + dir5 + str(mtype) + '_' + str(exp) + '_traj_pred_conf_bound_next_z_dim' + str(i) + '_' + str(
+        #            noise_level) + '_init_idx_' + str(start_idx) + '.png')
+        #    plt.close()
+
+        for i in range(latent_dim):
+            fig = plt.figure(dpi=300)
+            ax1 = fig.add_subplot()
+            plt.plot(timestep[:], mu_fwd_pred_2[:, i], color='g')
+            p1 = ax1.scatter(timestep[:], mu_fwd_pred_2[:, i], c=timestep[:], cmap='Greens', zorder=2, s=5)
+            ax1.fill_between(timestep[:], lower_fwd_pred_2[:, i], upper_fwd_pred_2[:, i], color='gray', alpha=0.3)
+            cbar = fig.colorbar(p1)
+            cbar.set_label('timesteps', rotation=90)
+            plt.savefig(save_dir + dir5 + str(mtype) + '_' + str(exp) + '_traj_pred_conf_bound_next_z_dim_timesteps' + str(i) + '_' + str(
+                noise_level) + '_init_idx_' + str(start_idx) + '.png')
+            plt.close()
+
+
+
+
 def make_reconstructions_predictions_plots(model, likelihood, likelihood_fwd, test_loader, exp, mtype, noise_level=0.0,
                                            obs_dim_1=84, obs_dim_2=84):
 
@@ -218,12 +480,15 @@ def make_reconstructions_plots(model, likelihood, test_loader, exp, mtype, det_d
 def plot_results(model, likelihood, likelihood_fwd, test_loader, exp, mtype, latent_dim, det_dec=False, noise_level=0.0,
                  PCA=False, state_dim=1, obs_dim_1=84, obs_dim_2=84, num_samples_plot=5, batch_size=50):
 
+    make_UQ_single_traj(model, likelihood, likelihood_fwd, test_loader, exp, mtype, noise_level, obs_dim_1, obs_dim_2,
+                        latent_dim)
 
     make_reconstructions_predictions_plots(model, likelihood, likelihood_fwd, test_loader, exp, mtype,
                                            noise_level=noise_level, obs_dim_1=obs_dim_1, obs_dim_2=obs_dim_2)
 
     make_reconstructions_plots(model, likelihood, test_loader, exp, mtype, det_dec=False, noise_level=noise_level,
                                obs_dim_1=obs_dim_1, obs_dim_2=obs_dim_2)
+
 
 
     mu_list = []

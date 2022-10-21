@@ -88,6 +88,8 @@ class ReplayBuffer:
         return dict(obs1=self.obs_buf[np.arange(start_idx, end_idx)],
                     acts=self.acts_buf[np.arange(start_idx, end_idx)],
                     obs2=self.next_obs_buf[np.arange(start_idx, end_idx)],
+                    states=self.state_buf[np.arange(start_idx, end_idx)],
+                    next_states=self.state_buf[np.arange(start_idx+1, end_idx+1)],
                     )
 
 
