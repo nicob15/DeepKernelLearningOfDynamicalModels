@@ -191,16 +191,8 @@ def make_UQ_single_traj(model, likelihood, likelihood_fwd, test_loader, exp, mty
         next_angle = np.arctan2(next_state[:, 1], next_state[:, 0])
 
         ang_idx = np.argsort(angle)
-        mu_sorted = mu[ang_idx]
-        angle_sorted = angle[ang_idx]
-        lower_sorted = lower[ang_idx]
-        upper_sorted = upper[ang_idx]
 
         ang_next_idx = np.argsort(next_angle)
-        mu_fwd_sorted = mu_fwd[ang_next_idx]
-        next_angle_sorted = next_angle[ang_next_idx]
-        lower_fwd_sorted = lower_fwd[ang_next_idx]
-        upper_fwd_sorted = upper_fwd[ang_next_idx]
 
         timestep = np.linspace(0, seq_len, angle.shape[0])
 

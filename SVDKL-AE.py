@@ -82,6 +82,8 @@ parser.add_argument('--log-interval', type=int, default=10,
 
 parser.add_argument('--seed', type=int, default=1,
                     help='Random seed (default: 1).')
+parser.add_argument('--jitter', type=float, default=1e-1,
+                    help='Cholesky jitter.')
 
 args = parser.parse_args()
 
@@ -137,6 +139,8 @@ training_dataset = args.training_dataset
 testing_dataset = args.testing_dataset
 
 log_interval = args.log_interval
+
+jitter = args.jitter
 
 
 def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulum-mid.pkl',
@@ -208,7 +212,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
 
     if training:
         for epoch in range(1, max_epoch):
-            with gpytorch.settings.cholesky_jitter(1e-1):
+            with gpytorch.settings.cholesky_jitter(jitter):
                 train(epoch, batch_size, counter, train_loader, model, likelihood, likelihood_fwd,
                     optimizer, max_epoch, variational_kl_term, variational_kl_term_fwd, k1, k2)
 
@@ -234,7 +238,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     likelihood.eval()
     likelihood_fwd.eval()
     with torch.no_grad(), gpytorch.settings.use_toeplitz(False), gpytorch.settings.fast_pred_var(), \
-            gpytorch.settings.cholesky_jitter(1e-1):
+            gpytorch.settings.cholesky_jitter(jitter):
         plot_results(model=model, likelihood=likelihood, likelihood_fwd=likelihood_fwd,
                      test_loader=test_loader, exp=exp, mtype=mtype, latent_dim=latent_dim,
                      noise_level=noise_level, state_dim=state_dim, obs_dim_1=obs_dim_1,
@@ -242,7 +246,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
 
 if __name__ == "__main__":
 
-    with gpytorch.settings.use_toeplitz(False):#, gpytorch.settings.fast_pred_var():
+    with gpytorch.settings.use_toeplitz(False)#, gpytorch.settings.fast_pred_var():
         main(exp=exp, mtype=mtype, noise_level=noise_level, training_dataset=training_dataset,
              testing_dataset=testing_dataset)
     print('Finished Training the Representation Model!')
