@@ -38,6 +38,8 @@ parser.add_argument('--coefficient-recon-loss', type=float, default=1.0,
                     help='Coefficient reconstrustruction loss.')
 parser.add_argument('--coefficient-fwd-kl-loss', type=float, default=1.0,
                     help='Coefficient KL-divergence forward loss.')
+parser.add_argument('--grid-size', type=int, default=32,
+                    help='Grid size variational inference GP.')
 
 parser.add_argument('--training', default=True,
                     help='Train the models.')
@@ -110,6 +112,7 @@ lr_gp_lik = args.learning_rate_gp_lik
 reg_coef = args.reg_coefficient
 k1 = args.coefficient_recon_loss
 k2 = args.coefficient_fwd_kl_loss
+grid_size = args.grid_size
 
 # build model
 latent_dim = args.latent_state_dim
@@ -147,7 +150,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     data = load_pickle(folder)
     data_test = load_pickle(folder_test)
 
-    model = DKLModel(num_dim=latent_dim, a_dim=act_dim, h_dim=h_dim, exp=exp)
+    model = DKLModel(num_dim=latent_dim, a_dim=act_dim, h_dim=h_dim, exp=exp, grid_size=grid_size)
 
     #likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim)
     #likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim)
@@ -239,7 +242,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
 
 if __name__ == "__main__":
 
-    with gpytorch.settings.use_toeplitz(False):#, gpytorch.settings.fast_pred_var():
+    with gpytorch.settings.use_toeplitz(False), gpytorch.settings.fast_pred_var():
         main(exp=exp, mtype=mtype, noise_level=noise_level, training_dataset=training_dataset,
              testing_dataset=testing_dataset)
     print('Finished Training the Representation Model!')
