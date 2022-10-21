@@ -16,6 +16,7 @@ from modified_gaussian_likelihood import GaussianLikelihood
 
 import gc
 
+from datetime import datetime
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -217,8 +218,10 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
                     optimizer, max_epoch, variational_kl_term, variational_kl_term_fwd, k1, k2)
 
             if epoch % log_interval == 0:
+                now = datetime.now()
+                date_string = now.strftime("%d-%m-%Y_%Hh-%Mm-%Ss")
                 torch.save({'model': model.state_dict(), 'likelihood': likelihood.state_dict(),
-                            'likelihood_fwd': likelihood_fwd.state_dict()}, './DKL_Model.pth')
+                            'likelihood_fwd': likelihood_fwd.state_dict()}, './DKL_Model_'+ date_string+'.pth')
                 #if plotting:
                 #    model.eval()
                 #    likelihood.eval()
