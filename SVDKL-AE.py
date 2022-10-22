@@ -157,8 +157,8 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
 
     model = DKLModel(num_dim=latent_dim, a_dim=act_dim, h_dim=h_dim, exp=exp, grid_size=grid_size)
 
-    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=latent_dim, has_task_noise=True)
-    likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=latent_dim, has_task_noise=True)
+    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=latent_dim, has_task_noise=False, has_global_noise=True)
+    likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=latent_dim, has_task_noise=False, has_global_noise=True)
 
     #likelihood = GaussianLikelihood()
     #likelihood_fwd = GaussianLikelihood()
@@ -182,21 +182,21 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         {'params': model.encoder.parameters()},
         {'params': model.decoder.parameters()},
         {'params': model.fwd_model_DKL.fwd_model.parameters()},
-        #{'params': model.gp_layer.hyperparameters(), 'lr': lr_gp},
-        #{'params': model.gp_layer.variational_parameters(), 'lr': lr_gp_var},
-        #{'params': model.fwd_model_DKL.gp_layer_2.hyperparameters(), 'lr': lr_gp},
-        #{'params': model.fwd_model_DKL.gp_layer_2.variational_parameters(), 'lr': lr_gp_var},
-        #{'params': likelihood.parameters(), 'lr': lr_gp_lik},
-        #{'params': likelihood_fwd.parameters(), 'lr': lr_gp_lik},
-        ], lr=lr, weight_decay=reg_coef)
-
-    optimizer_var = torch.optim.Adam([
         {'params': model.gp_layer.hyperparameters(), 'lr': lr_gp},
         {'params': model.gp_layer.variational_parameters(), 'lr': lr_gp_var},
         {'params': model.fwd_model_DKL.gp_layer_2.hyperparameters(), 'lr': lr_gp},
         {'params': model.fwd_model_DKL.gp_layer_2.variational_parameters(), 'lr': lr_gp_var},
         {'params': likelihood.parameters(), 'lr': lr_gp_lik},
-        {'params': likelihood_fwd.parameters(), 'lr': lr_gp_lik}])
+        {'params': likelihood_fwd.parameters(), 'lr': lr_gp_lik},
+        ], lr=lr, weight_decay=reg_coef)
+
+    #optimizer_var = torch.optim.Adam([
+    #    {'params': model.gp_layer.hyperparameters(), 'lr': 0.1*lr_gp},
+    #    {'params': model.gp_layer.variational_parameters(), 'lr': 0.1*lr_gp_var},
+    #    {'params': model.fwd_model_DKL.gp_layer_2.hyperparameters(), 'lr': 0.1*lr_gp},
+    #    {'params': model.fwd_model_DKL.gp_layer_2.variational_parameters(), 'lr': 0.1*lr_gp_var},
+    #    {'params': likelihood.parameters(), 'lr': 0.1*lr_gp_lik},
+    #    {'params': likelihood_fwd.parameters(), 'lr': 0.1*lr_gp_lik}])
 
     counter = 0
     train_loader = ReplayBuffer(obs_dim=(obs_dim_1, obs_dim_2, 6), act_dim=act_dim, size=len(data), state_dim=state_dim)
@@ -225,12 +225,12 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         for epoch in range(1, max_epoch):
             with gpytorch.settings.cholesky_jitter(jitter):
                 train(epoch, batch_size, counter, train_loader, model, likelihood, likelihood_fwd,
-                    optimizer, max_epoch, variational_kl_term, variational_kl_term_fwd, k1, k2, optimizer_var)
+                    optimizer, max_epoch, variational_kl_term, variational_kl_term_fwd, k1, k2)
 
             if epoch % log_interval == 0:
 
                 torch.save({'model': model.state_dict(), 'likelihood': likelihood.state_dict(),
-                            'likelihood_fwd': likelihood_fwd.state_dict()}, './DKL_Model_'+ date_string+'.pth')
+                            'likelihood_fwd': likelihood_fwd.state_dict()}, './DKL_Model_' + date_string+'.pth')
                 #if plotting:
                 #    model.eval()
                 #    likelihood.eval()
@@ -244,7 +244,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
 
 
     torch.save({'model': model.state_dict(), 'likelihood': likelihood.state_dict(),
-                'likelihood_fwd': likelihood_fwd.state_dict()}, './DKL_Model_'+ date_string+'.pth')
+                'likelihood_fwd': likelihood_fwd.state_dict()}, './DKL_Model_' + date_string+'.pth')
 
     model.eval()
     likelihood.eval()
