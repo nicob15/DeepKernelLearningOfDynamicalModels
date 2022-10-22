@@ -190,7 +190,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         #{'params': likelihood_fwd.parameters(), 'lr': lr_gp_lik},
         ], lr=lr, weight_decay=reg_coef)
 
-    optimizer_var = torch.optim.SGD([
+    optimizer_var = torch.optim.Adam([
         {'params': model.gp_layer.hyperparameters(), 'lr': lr_gp},
         {'params': model.gp_layer.variational_parameters(), 'lr': lr_gp_var},
         {'params': model.fwd_model_DKL.gp_layer_2.hyperparameters(), 'lr': lr_gp},
