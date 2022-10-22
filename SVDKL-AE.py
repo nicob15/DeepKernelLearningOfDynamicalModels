@@ -182,13 +182,21 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         {'params': model.encoder.parameters()},
         {'params': model.decoder.parameters()},
         {'params': model.fwd_model_DKL.fwd_model.parameters()},
+        #{'params': model.gp_layer.hyperparameters(), 'lr': lr_gp},
+        #{'params': model.gp_layer.variational_parameters(), 'lr': lr_gp_var},
+        #{'params': model.fwd_model_DKL.gp_layer_2.hyperparameters(), 'lr': lr_gp},
+        #{'params': model.fwd_model_DKL.gp_layer_2.variational_parameters(), 'lr': lr_gp_var},
+        #{'params': likelihood.parameters(), 'lr': lr_gp_lik},
+        #{'params': likelihood_fwd.parameters(), 'lr': lr_gp_lik},
+        ], lr=lr, weight_decay=reg_coef)
+
+    optimizer_var = torch.optim.SGD([
         {'params': model.gp_layer.hyperparameters(), 'lr': lr_gp},
         {'params': model.gp_layer.variational_parameters(), 'lr': lr_gp_var},
         {'params': model.fwd_model_DKL.gp_layer_2.hyperparameters(), 'lr': lr_gp},
         {'params': model.fwd_model_DKL.gp_layer_2.variational_parameters(), 'lr': lr_gp_var},
         {'params': likelihood.parameters(), 'lr': lr_gp_lik},
-        {'params': likelihood_fwd.parameters(), 'lr': lr_gp_lik},
-        ], lr=lr, weight_decay=reg_coef)
+        {'params': likelihood_fwd.parameters(), 'lr': lr_gp_lik}])
 
     counter = 0
     train_loader = ReplayBuffer(obs_dim=(obs_dim_1, obs_dim_2, 6), act_dim=act_dim, size=len(data), state_dim=state_dim)
@@ -217,7 +225,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         for epoch in range(1, max_epoch):
             with gpytorch.settings.cholesky_jitter(jitter):
                 train(epoch, batch_size, counter, train_loader, model, likelihood, likelihood_fwd,
-                    optimizer, max_epoch, variational_kl_term, variational_kl_term_fwd, k1, k2)
+                    optimizer, max_epoch, variational_kl_term, variational_kl_term_fwd, k1, k2, optimizer_var)
 
             if epoch % log_interval == 0:
 

@@ -12,7 +12,7 @@ def beta_scheduler(epoch, max_epoch, R=0.5, M=1):
     return beta
 
 def train_DKL(epoch, batch_size, nr_data, train_loader, model, likelihood, likelihood_fwd, optimizer,
-              max_epoch, variational_kl_term, variational_kl_term_fwd, k1=1, k2=2):
+              max_epoch, variational_kl_term, variational_kl_term_fwd, k1=1, k2=2, optimizer_var=0):
     mll = gpytorch.mlls.VariationalELBO(likelihood_fwd, model.fwd_model_DKL.gp_layer_2, num_data=nr_data,
                                         combine_terms=False)
     #mll2 = gpytorch.mlls.VariationalELBO(likelihood_rew, model.rew_model_DKL.gp_layer_3, num_data=nr_data,
@@ -41,7 +41,7 @@ def train_DKL(epoch, batch_size, nr_data, train_loader, model, likelihood, likel
 
         #variational_ngd_optimizer.zero_grad()
         optimizer.zero_grad()
-        #optimizer_gp.zero_grad()
+        optimizer_var.zero_grad()
         mu_x, var_x, mu, var, z, dist, mu_target, var_target, res_target, mu_next, var_next, res_fwd, mu_r, var_r, res_rew = model(obs, a, next_obs, likelihood)
 
         var_f = var
@@ -126,7 +126,7 @@ def train_DKL(epoch, batch_size, nr_data, train_loader, model, likelihood, likel
             #variational_ngd_optimizer.step()
         optimizer.step()
             #optimizer.step(loss)
-            #optimizer_gp.step()
+        optimizer_var.step()
 
     for param_name, param in model.gp_layer.named_parameters():
         print(param_name)
