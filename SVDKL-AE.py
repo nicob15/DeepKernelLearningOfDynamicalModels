@@ -157,8 +157,8 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
 
     model = DKLModel(num_dim=latent_dim, a_dim=act_dim, h_dim=h_dim, exp=exp, grid_size=grid_size)
 
-    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim)
-    likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim)
+    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=latent_dim, has_task_noise=True)
+    likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=latent_dim, has_task_noise=True)
 
     #likelihood = GaussianLikelihood()
     #likelihood_fwd = GaussianLikelihood()
