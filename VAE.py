@@ -13,6 +13,7 @@ from Trainer import train_StochasticVAE as train
 
 import gc
 
+from datetime import datetime
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -163,12 +164,17 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
                           add_gaussian_noise(dt[3] / 255, noise_level=noise_level, clip=True).astype('float32'),
                           dt[4], dt[5].astype('float32'))
 
+    save_pth_dir =directory + '/Figures/' + str(exp) + '/' + str(mtype) + '/Noise_level_' + str(
+        noise_level)
+    now = datetime.now()
+    date_string = now.strftime("%d-%m-%Y_%Hh-%Mm-%Ss")
+
     if training:
         for epoch in range(1, max_epoch):
             train(epoch, batch_size, counter, train_loader, model, optimizer, max_epoch)
 
             if epoch % log_interval == 0:
-                torch.save(model.state_dict(), './VAE_Model.pth')
+                torch.save(model.state_dict(), save_pth_dir + '/VAE_Model_'+ date_string+'.pth')
                 #if plotting:
                 #    model.eval()
                 #    plot_results(model=model, likelihood=None, likelihood_fwd=None,
@@ -177,7 +183,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
                 #                 obs_dim_2=obs_dim_2, num_samples_plot=num_samples_plot, batch_size=batch_size)
 
 
-    torch.save(model.state_dict(), './VAE_Model.pth')
+    torch.save(model.state_dict(), save_pth_dir + '/VAE_Model_'+ date_string+'.pth')
 
     model.eval()
     plot_results(model=model, likelihood=None, likelihood_fwd=None,

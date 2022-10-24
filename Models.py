@@ -170,7 +170,8 @@ class DKLModel(gpytorch.Module):
         # predicted distribution
         res_fwd, mu_fwd, var_fwd, z_fwd = self.fwd_model_DKL(z, a, mu, var)
 
-        lower, upper = likelihood(res).confidence_region()
+        var = likelihood(res).variance
+        lower, upper = mu - torch.sqrt(var), mu + torch.sqrt(var)#likelihood(res).confidence_region()
         lower_fwd, upper_fwd = likelihood_fwd(res_fwd).confidence_region()
 
         mu_x = self.decoder(likelihood(res).sample(sample_shape=torch.Size([n_samples])).view(n_samples, self.num_dim))[0].mean(0)
