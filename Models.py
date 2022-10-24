@@ -144,7 +144,7 @@ class DKLModel(gpytorch.Module):
 
     def predict_dynamics(self, x, a, likelihood_fwd, likelihood):
 
-        n_samples = 10
+        n_samples = 1
         if self.e_type == 'DKL':
             res, mu, var, z = self.forward_DKL(x)
             z = likelihood(res).sample(sample_shape=torch.Size([n_samples])).view(n_samples, self.num_dim).mean(0).view(1, self.num_dim)
@@ -742,7 +742,7 @@ class StochasticVAE(nn.Module):
 
     def predict_dynamics(self, x, a):
 
-        n_samples = 10
+        n_samples = 1
 
         _, _, z = self.encoder(x)
 
