@@ -33,7 +33,7 @@ parser.add_argument('--learning-rate-gp-var', type=float, default=1e-2,
                     help='Learning rate GP variational.')
 parser.add_argument('--learning-rate-gp-lik', type=float, default=1e-2,
                     help='Learning rate GP likelihood.')
-parser.add_argument('--reg_coefficient', type=float, default=1e-2,
+parser.add_argument('--reg-coefficient', type=float, default=1e-2,
                     help='L2 regularization coefficient.')
 parser.add_argument('--coefficient-recon-loss', type=float, default=1.0,
                     help='Coefficient reconstrustruction loss.')
@@ -224,6 +224,9 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
 
     save_pth_dir =directory + '/Figures/' + str(exp) + '/' + str(mtype) + '/Noise_level_' + str(
         noise_level)
+
+    if not os.path.exists(save_pth_dir):
+        os.makedirs(save_pth_dir)
 
     if training:
         for epoch in range(1, max_epoch):

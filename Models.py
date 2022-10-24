@@ -381,8 +381,8 @@ class ForwardModel_2(nn.Module):
 
         #self.fc = nn.Linear(z_dim + a_dim + 2*z_dim, h_dim)
 
-        self.action_repeat = max(1, int(0.5 * z_dim // a_dim))
-        a_dim = a_dim * self.action_repeat
+        #self.action_repeat = max(1, int(0.5 * z_dim // a_dim))
+        #a_dim = a_dim * self.action_repeat
 
         self.fc = nn.Linear(z_dim + a_dim, h_dim)
         self.fc1 = nn.Linear(h_dim, h_dim)
@@ -395,8 +395,8 @@ class ForwardModel_2(nn.Module):
     def forward(self, z, a, mu_z, var_z):
         #za = torch.cat([z, a.repeat([1, self.action_repeat]), mu_z, var_z], dim=1)
 
-        #za = torch.cat([z, a], dim=1)
-        za = torch.cat([z, a.repeat([1, self.action_repeat])], dim=1)
+        za = torch.cat([z, a], dim=1)
+        #za = torch.cat([z, a.repeat([1, self.action_repeat])], dim=1)
 
         za = F.elu(self.fc(za))
         za = F.elu(self.fc1(za))
@@ -546,13 +546,14 @@ class Encoder(nn.Module):
         return self.encoder(x)
 
 class ForwardModelVAE(nn.Module):
-    def __init__(self, z_dim=20, h_dim=256, a_dim=1):
+    def __init__(self, z_dim=20, h_dim=256, a_dim=1, fixed_std=True):
         super(ForwardModelVAE, self).__init__()
 
         # repeat the action to make it similar in dimension to the state
         # otherwise it is ignored with high-dimensional states
         #self.action_repeat = max(1, int(0.5 * z_dim // a_dim))
         #a_dim = a_dim * self.action_repeat
+        self.fixed_std = fixed_std
 
         self.fc = nn.Linear(z_dim + a_dim, h_dim)
         self.fc1 = nn.Linear(h_dim, h_dim)
@@ -565,7 +566,10 @@ class ForwardModelVAE(nn.Module):
         za = F.elu(self.fc(za))
         za = F.elu(self.fc1(za))
         z_next_mu = self.fcmu(za)
-        z_next_std = torch.ones_like(z_next_mu).detach()
+        if self.fixed_std:
+            z_next_std = torch.ones_like(z_next_mu).detach()
+        else:
+            z_next_std = F.relu(z_next_mu) + 1e-4
         #z_next_logvar = self.fcvar(za)
         #z_next_std = F.relu(z_next_mu) + 1e-3
         return z_next_mu, z_next_std
@@ -623,7 +627,7 @@ class EncoderVAE(nn.Module):
         x = self.batch2(x)
         x = torch.flatten(x, start_dim=1)
         mu = self.fc(x)
-        std = F.relu(self.fc1(x)) + 1e-3
+        std = F.relu(self.fc1(x)) + 1e-4#1e-3
         return mu, std
 
     def forward(self, x):
@@ -710,13 +714,13 @@ class StochasticDecoder(nn.Module):
         return self.decoder(x)
 
 class StochasticVAE(nn.Module):
-    def __init__(self, z_dim, h_dim, a_dim):
+    def __init__(self, z_dim, h_dim, a_dim, fixed_std):
         super(StochasticVAE, self).__init__()
 
         self.encoder = EncoderVAE(z_dim)
         self.decoder = StochasticDecoder(z_dim)
 
-        self.fwd_model = ForwardModelVAE(z_dim, h_dim, a_dim)
+        self.fwd_model = ForwardModelVAE(z_dim, h_dim, a_dim, fixed_std=fixed_std)
         self.rew_model = RewardModelVAE(z_dim, h_dim, a_dim)
 
     def sampling(self, mu, std):

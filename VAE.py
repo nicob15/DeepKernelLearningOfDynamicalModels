@@ -24,6 +24,8 @@ parser.add_argument('--num-epochs', type=int, default=1,
                     help='Number of training epochs.')
 parser.add_argument('--learning-rate', type=float, default=3e-4,
                     help='Learning rate.')
+parser.add_argument('--reg-coefficient', type=float, default=1e-2,
+                    help='L2 regularization coefficient.')
 
 parser.add_argument('--training', default=True,
                     help='Train the models.')
@@ -90,6 +92,7 @@ num_samples_plot = args.num_samples_plot
 
 # learning rate
 lr = args.learning_rate
+reg_coef = args.reg_coefficient
 
 # build model
 latent_dim = args.latent_state_dim
@@ -127,7 +130,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     data = load_pickle(folder)
     data_test = load_pickle(folder_test)
 
-    model = StochasticVAE(z_dim=latent_dim, h_dim=h_dim, a_dim=act_dim)
+    model = StochasticVAE(z_dim=latent_dim, h_dim=h_dim, a_dim=act_dim, fixed_std=True)
     if torch.cuda.is_available():
         model.cuda()
 
@@ -141,7 +144,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         # Use the adam optimizer
     optimizer = torch.optim.Adam([
         {'params': model.parameters()},
-    ], lr=lr)
+    ], lr=lr, weight_decay=reg_coef)
 
     counter = 0
     train_loader = ReplayBuffer(obs_dim=(obs_dim_1, obs_dim_2, 6), act_dim=act_dim, size=len(data), state_dim=state_dim)
@@ -168,6 +171,10 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         noise_level)
     now = datetime.now()
     date_string = now.strftime("%d-%m-%Y_%Hh-%Mm-%Ss")
+
+
+    if not os.path.exists(save_pth_dir):
+        os.makedirs(save_pth_dir)
 
     if training:
         for epoch in range(1, max_epoch):

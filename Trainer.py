@@ -359,7 +359,7 @@ def train_StochasticVAE(epoch, batch_size, nr_data, train_loader, model, optimiz
                                                                    )
 
         loss_vae = loss_negloglikelihood(mu_x, torch.from_numpy(data['obs1']).permute(0, 3, 1, 2).cuda(), torch.square(std_x), dim=3)
-        loss_fwd = kl_divergence(mu_target, torch.square(std_target), mu_next, torch.square(std_next), dim=1)
+        loss_fwd = kl_divergence_balance(mu_target, torch.square(std_target), mu_next, torch.square(std_next), alpha=0.9, dim=1)
         loss_rew = 0.0*loss_negloglikelihood(mu_r, torch.from_numpy(data['rews']).view(-1, 1).cuda(), torch.square(std_r), dim=1)
 
         beta = 1#beta_scheduler(epoch, max_epoch)
