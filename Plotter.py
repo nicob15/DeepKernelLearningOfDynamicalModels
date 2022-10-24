@@ -97,7 +97,7 @@ def make_UQ_single_traj(model, likelihood, likelihood_fwd, test_loader, exp, mty
 
 
     start_idx = [1]
-    seq_len = 16
+    seq_len = 48#16
     for j in range(len(start_idx)):
         data = test_loader.sample_sequence(start_idx=start_idx[j], seq_len=seq_len)
         obs = torch.from_numpy(data['obs1']).permute(0, 3, 1, 2)
@@ -201,6 +201,18 @@ def make_UQ_single_traj(model, likelihood, likelihood_fwd, test_loader, exp, mty
                    fp=save_dir + str(mtype) + '_' + str(exp) + '_sequence_' + str(start_idx[j]) + '_current_frame_' +
                    str(noise_level) + '.png')
 
+        for i in range(3):
+            fig = plt.figure(dpi=300)
+            ax1 = fig.add_subplot()
+            plt.plot(timestep[:], state[:, i], color='gray', linestyle='--')
+            p1 = ax1.scatter(timestep[:], state[:, i], c=angle[:], cmap='hsv', zorder=2, s=5)
+            #ax1.fill_between(timestep[:], lower[:, i], upper[:, i], color='gray', alpha=0.3)
+            cbar = fig.colorbar(p1)
+            cbar.set_label('timesteps', rotation=90)
+            plt.savefig(save_dir + str(mtype) + '_' + str(exp) + '_traj_state_timesteps' + str(i) + '_' + str(
+                noise_level) + '_init_idx_' + str(start_idx) + '.png')
+            plt.close()
+
         #for i in range(latent_dim):
         #    fig = plt.figure(dpi=300)
         #    ax1 = fig.add_subplot()
@@ -215,8 +227,8 @@ def make_UQ_single_traj(model, likelihood, likelihood_fwd, test_loader, exp, mty
         for i in range(latent_dim):
             fig = plt.figure(dpi=300)
             ax1 = fig.add_subplot()
-            plt.plot(timestep[:], mu[:, i], color='g')
-            p1 = ax1.scatter(timestep[:], mu[:, i], c=timestep[:], cmap='Greens', zorder=2, s=5)
+            plt.plot(timestep[:], mu[:, i], color='gray', linestyle='--')
+            p1 = ax1.scatter(timestep[:], mu[:, i], c=angle[:], cmap='hsv', zorder=2, s=5)
             ax1.fill_between(timestep[:], lower[:, i], upper[:, i], color='gray', alpha=0.3)
             cbar = fig.colorbar(p1)
             cbar.set_label('timesteps', rotation=90)
@@ -238,8 +250,8 @@ def make_UQ_single_traj(model, likelihood, likelihood_fwd, test_loader, exp, mty
         for i in range(latent_dim):
             fig = plt.figure(dpi=300)
             ax1 = fig.add_subplot()
-            plt.plot(timestep[:], mu_fwd[:, i], color='g')
-            p1 = ax1.scatter(timestep[:], mu_fwd[:, i], c=timestep[:], cmap='Greens', zorder=2, s=5)
+            plt.plot(timestep[:], mu_fwd[:, i], color='gray', linestyle='--')
+            p1 = ax1.scatter(timestep[:], mu_fwd[:, i], c=next_angle[:], cmap='hsv', zorder=2, s=5)
             ax1.fill_between(timestep[:], lower_fwd[:, i], upper_fwd[:, i], color='gray', alpha=0.3)
             cbar = fig.colorbar(p1)
             cbar.set_label('timesteps', rotation=90)
@@ -261,8 +273,8 @@ def make_UQ_single_traj(model, likelihood, likelihood_fwd, test_loader, exp, mty
         for i in range(latent_dim):
             fig = plt.figure(dpi=300)
             ax1 = fig.add_subplot()
-            plt.plot(timestep[:], mu_pred[:, i], color='g')
-            p1 = ax1.scatter(timestep[:], mu_pred[:, i], c=timestep[:], cmap='Greens', zorder=2, s=5)
+            plt.plot(timestep[:], mu_pred[:, i], color='gray', linestyle='--')
+            p1 = ax1.scatter(timestep[:], mu_pred[:, i], c=angle[:], cmap='hsv', zorder=2, s=5)
             ax1.fill_between(timestep[:], lower_pred[:, i], upper_pred[:, i], color='gray', alpha=0.3)
             cbar = fig.colorbar(p1)
             cbar.set_label('timesteps', rotation=90)
@@ -285,8 +297,8 @@ def make_UQ_single_traj(model, likelihood, likelihood_fwd, test_loader, exp, mty
         for i in range(latent_dim):
             fig = plt.figure(dpi=300)
             ax1 = fig.add_subplot()
-            plt.plot(timestep[:], mu_fwd_pred[:, i], color='g')
-            p1 = ax1.scatter(timestep[:], mu_fwd_pred[:, i], c=timestep[:], cmap='Greens', zorder=2, s=5)
+            plt.plot(timestep[:], mu_fwd_pred[:, i], color='gray', linestyle='--')
+            p1 = ax1.scatter(timestep[:], mu_fwd_pred[:, i], c=next_angle[:], cmap='hsv', zorder=2, s=5)
             ax1.fill_between(timestep[:], lower_fwd_pred[:, i], upper_fwd_pred[:, i], color='gray', alpha=0.3)
             cbar = fig.colorbar(p1)
             cbar.set_label('timesteps', rotation=90)
@@ -309,8 +321,8 @@ def make_UQ_single_traj(model, likelihood, likelihood_fwd, test_loader, exp, mty
         for i in range(latent_dim):
             fig = plt.figure(dpi=300)
             ax1 = fig.add_subplot()
-            plt.plot(timestep[:], mu_fwd_pred_2[:, i], color='g')
-            p1 = ax1.scatter(timestep[:], mu_fwd_pred_2[:, i], c=timestep[:], cmap='Greens', zorder=2, s=5)
+            plt.plot(timestep[:], mu_fwd_pred_2[:, i], color='gray', linestyle='--')
+            p1 = ax1.scatter(timestep[:], mu_fwd_pred_2[:, i], c=next_angle[:], cmap='hsv', zorder=2, s=5)
             ax1.fill_between(timestep[:], lower_fwd_pred_2[:, i], upper_fwd_pred_2[:, i], color='gray', alpha=0.3)
             cbar = fig.colorbar(p1)
             cbar.set_label('timesteps', rotation=90)

@@ -221,6 +221,10 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
 
     now = datetime.now()
     date_string = now.strftime("%d-%m-%Y_%Hh-%Mm-%Ss")
+
+    save_pth_dir =directory + '/Figures/' + str(exp) + '/' + str(mtype) + '/Noise_level_' + str(
+        noise_level)
+
     if training:
         for epoch in range(1, max_epoch):
             with gpytorch.settings.cholesky_jitter(jitter):
@@ -230,7 +234,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
             if epoch % log_interval == 0:
 
                 torch.save({'model': model.state_dict(), 'likelihood': likelihood.state_dict(),
-                            'likelihood_fwd': likelihood_fwd.state_dict()}, './DKL_Model_' + date_string+'.pth')
+                            'likelihood_fwd': likelihood_fwd.state_dict()}, save_pth_dir +'/DKL_Model_' + date_string+'.pth')
                 #if plotting:
                 #    model.eval()
                 #    likelihood.eval()
@@ -244,7 +248,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
 
 
     torch.save({'model': model.state_dict(), 'likelihood': likelihood.state_dict(),
-                'likelihood_fwd': likelihood_fwd.state_dict()}, './DKL_Model_' + date_string+'.pth')
+                'likelihood_fwd': likelihood_fwd.state_dict()}, save_pth_dir + '/DKL_Model_' + date_string+'.pth')
 
     model.eval()
     likelihood.eval()
