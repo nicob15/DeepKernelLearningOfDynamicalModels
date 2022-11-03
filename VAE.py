@@ -3,13 +3,13 @@ import torch.utils
 
 import os
 from utils import load_pickle, add_gaussian_noise
-from Replay_Buffer import ReplayBuffer
+from replay_buffer import ReplayBuffer
 import gpytorch
 import numpy as np
 
-from Plotter import plot_results
-from Models import StochasticVAE
-from Trainer import train_StochasticVAE as train
+from plotter import plot_results
+from models import StochasticVAE
+from trainer import train_StochasticVAE as train
 
 import gc
 
@@ -29,7 +29,7 @@ parser.add_argument('--reg-coefficient', type=float, default=1e-2,
 
 parser.add_argument('--training', default=True,
                     help='Train the models.')
-parser.add_argument('--plotting', default=False,
+parser.add_argument('--plotting', default=True,
                     help='Plot the results.')
 parser.add_argument('--num-samples-plot', type=int, default=5,
                     help='Number of independent sampling from the distribution.')
@@ -119,8 +119,9 @@ testing_dataset = args.testing_dataset
 log_interval = args.log_interval
 
 
-def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulum-mid.pkl',
+def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulum-train.pkl',
          testing_dataset='pendulum_test.pkl'):
+
     # load data
     directory = os.path.dirname(os.path.abspath(__file__))
 
@@ -130,7 +131,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     data = load_pickle(folder)
     data_test = load_pickle(folder_test)
 
-    model = StochasticVAE(z_dim=latent_dim, h_dim=h_dim, a_dim=act_dim, fixed_std=True)
+    model = StochasticVAE(z_dim=latent_dim, h_dim=h_dim, a_dim=act_dim, fixed_std=False)
     if torch.cuda.is_available():
         model.cuda()
 
@@ -151,9 +152,9 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     for d in data:
         train_loader.store(add_gaussian_noise(d[0]/255, noise_level=noise_level, clip=True).astype('float32'),
                            add_gaussian_noise(d[1], noise_level=noise_level_act).astype('float32'),
-                           d[2].astype('float32'),
                            add_gaussian_noise(d[3]/255, noise_level=noise_level, clip=True).astype('float32'),
-                           d[4], d[5].astype('float32'))
+                           d[4],
+                           d[5].astype('float32'))
         counter += 1
 
     print(counter)
@@ -163,41 +164,28 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     for dt in data_test:
         test_loader.store(add_gaussian_noise(dt[0] / 255, noise_level=noise_level, clip=True).astype('float32'),
                           add_gaussian_noise(dt[1], noise_level=noise_level_act).astype('float32'),
-                          dt[2].astype('float32'),
                           add_gaussian_noise(dt[3] / 255, noise_level=noise_level, clip=True).astype('float32'),
-                          dt[4], dt[5].astype('float32'))
+                          dt[4],
+                          dt[5].astype('float32'))
 
-    save_pth_dir =directory + '/Figures/' + str(exp) + '/' + str(mtype) + '/Noise_level_' + str(
-        noise_level)
+    save_pth_dir = directory + '/Results/' + str(exp) + '/' + str(mtype) + '/Noise_level_' + str(noise_level)
     now = datetime.now()
     date_string = now.strftime("%d-%m-%Y_%Hh-%Mm-%Ss")
-
-
     if not os.path.exists(save_pth_dir):
         os.makedirs(save_pth_dir)
 
     if training:
         for epoch in range(1, max_epoch):
-            train(epoch, batch_size, counter, train_loader, model, optimizer, max_epoch)
-
+            train(epoch, batch_size, counter, train_loader, model, optimizer)
             if epoch % log_interval == 0:
-                torch.save(model.state_dict(), save_pth_dir + '/VAE_Model_'+ date_string+'.pth')
-                #if plotting:
-                #    model.eval()
-                #    plot_results(model=model, likelihood=None, likelihood_fwd=None,
-                #                 test_loader=test_loader, exp=exp, mtype=mtype,latent_dim=latent_dim,
-                #                 noise_level=noise_level, state_dim=state_dim, obs_dim_1=obs_dim_1,
-                #                 obs_dim_2=obs_dim_2, num_samples_plot=num_samples_plot, batch_size=batch_size)
+                torch.save(model.state_dict(), save_pth_dir + '/VAE_Model_' + date_string+'.pth')
 
+    torch.save(model.state_dict(), save_pth_dir + '/VAE_Model_' + date_string + '.pth')
 
-    torch.save(model.state_dict(), save_pth_dir + '/VAE_Model_'+ date_string+'.pth')
-
-    model.eval()
-    plot_results(model=model, likelihood=None, likelihood_fwd=None,
-                 test_loader=test_loader, exp=exp, mtype=mtype, latent_dim=latent_dim,
-                 noise_level=noise_level, state_dim=state_dim, obs_dim_1=obs_dim_1,
-                 obs_dim_2=obs_dim_2, num_samples_plot=num_samples_plot, batch_size=batch_size)
-
+    if plotting:
+        model.eval()
+        plot_results(model=model, likelihood=None, likelihood_fwd=None, test_loader=test_loader, mtype=mtype,
+                     save_dir=save_pth_dir, PCA=False, obs_dim_1=obs_dim_1, obs_dim_2=obs_dim_2, num_samples_plot=1000)
 
 if __name__ == "__main__":
 

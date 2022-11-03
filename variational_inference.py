@@ -22,8 +22,5 @@ class _ApproximateMarginalLogLikelihood(MarginalLogLikelihood, ABC):
 
 class VariationalKL(_ApproximateMarginalLogLikelihood):
 
-    #def _log_likelihood_term(self, variational_dist_f, target, **kwargs):
-    #    return self.likelihood.expected_log_prob(target, variational_dist_f, **kwargs).sum(-1)
-
     def forward(self, **kwargs):
         return super().forward(**kwargs)
