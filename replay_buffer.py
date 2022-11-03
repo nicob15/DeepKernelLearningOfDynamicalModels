@@ -1,44 +1,25 @@
 import numpy as np
 
-import cv2
-
-from utils import add_gaussian_noise
-
-def stack_frames(prev_frame, frame, size1=84, size2=84):
-    prev_frame = cv2.resize(prev_frame, (size1, size2))
-    frame = cv2.resize(frame, (size1, size2))
-    stack_obs = np.concatenate((prev_frame, frame), axis=-1)
-    return stack_obs
-
 class ReplayBuffer:
-    "see: https://spinningup.openai.com/en/latest/_modules/spinup/algos/ddpg/ddpg.html#ddpg"
-    "Possible extensions (CER): https://arxiv.org/pdf/1712.01275.pdf"
-    " (PER): https://arxiv.org/abs/1511.05952"
-    CER = False
 
-
-    # TODO: Extend with possibility of restoring sequences
-    def __init__(self, obs_dim, act_dim,  size, state_dim, random_sampling=True):
+    def __init__(self, obs_dim, act_dim, size, state_dim):
         self.obs_dim = obs_dim
         self.act_dim = act_dim
         self.state_dim = state_dim
         self.size = size
-        self.random_sampling = random_sampling
         self.obs_buf = np.zeros([int(size), int(obs_dim[0]), int(obs_dim[1]), int(obs_dim[2])], dtype=np.float32)
         self.next_obs_buf = np.zeros([int(size), int(obs_dim[0]), int(obs_dim[1]), int(obs_dim[2])], dtype=np.float32)
         self.acts_buf = np.zeros([int(size), int(act_dim)], dtype=np.float32)
-        self.rews_buf = np.zeros(int(size), dtype=np.float32)
         self.done_buf = np.zeros(int(size), dtype=np.float32)
         self.ep_start_buf = np.zeros(int(size), dtype=bool)
         self.state_buf = np.zeros([int(size), state_dim], dtype=np.float32)
         self.ptr, self.size, self.max_size = 0, 0, int(size)
 
 
-    def store(self, obs, act, rew, next_obs, done, state):
+    def store(self, obs, act, next_obs, done, state):
         self.obs_buf[self.ptr] = obs
         self.next_obs_buf[self.ptr] = next_obs
         self.acts_buf[self.ptr] = act
-        self.rews_buf[self.ptr] = rew
         self.done_buf[self.ptr] = done
         self.state_buf[self.ptr] = state
         self.ptr = (self.ptr + 1) % self.max_size  # replace oldest entry from memory
@@ -46,8 +27,6 @@ class ReplayBuffer:
 
 
     def sample_batch(self, batch_size=32):
-
-
         idxs = np.random.randint(0, self.size, size=batch_size)
         idxs2 = np.random.randint(0, self.size, size=batch_size)
 
@@ -55,28 +34,9 @@ class ReplayBuffer:
             if self.done_buf[idxs[i]] == 1.0:
                 idxs[i] = idxs[i] - 1
 
-        if self.CER: idxs[-1] = abs(self.ptr - 1) # this takes the last added sample, unless ptr = 0, then it takes sample 1, this then does violate CER
-
-        #distractor = np.ones((20,20))
-        #x_dist = np.random.randint(0, 84 - 20)
-        #y_dist = np.random.randint(0, 84 - 20)
-        #noisy_obs_buff = np.zeros_like(self.obs_buf[idxs])
-        #noisy_next_obs_buff = np.zeros_like(self.next_obs_buf[idxs])
-
-        #for i in range(batch_size):
-        #    noisy_obs_buff[i] = self.obs_buf[i]
-
-        #noisy_acts_buf = np.zeros_like(self.acts_buf[idxs])
-        #noisy_next_obs_buff = np.zeros_like(self.next_obs_buf[idxs])
-
-        #for i in range(batch_size):
-        #    noisy_acts_buf[i] = add_gaussian_noise(self.acts_buf[idxs[i]], noise_level=0.0, clip=True, clip_level=(-2,2)).astype('float32')
-        #    noisy_next_obs_buff[i] = add_gaussian_noise(self.next_obs_buf[idxs[i]], noise_level=0.5, clip=True)
-
         return dict(obs1=self.obs_buf[idxs],
                     obs2=self.next_obs_buf[idxs],
                     acts=self.acts_buf[idxs],
-                    rews=self.rews_buf[idxs],
                     done=self.done_buf[idxs],
                     ep_start=self.ep_start_buf[idxs],
                     obs3=self.next_obs_buf[idxs2],
@@ -92,17 +52,14 @@ class ReplayBuffer:
                     next_states=self.state_buf[np.arange(start_idx+1, end_idx+1)],
                     )
 
-
     def get_all_samples(self):
         return dict(obs=self.obs_buf[:self.size],
                     next_obs=self.next_obs_buf[:self.size],
                     acts=self.acts_buf[:self.size],
-                    rews=self.rews_buf[:self.size],
                     done=self.done_buf[:self.size])
-                    #sample_nr=self.sample_nr_buf[:self.size])
 
     def clear_memory(self):
-        self.__init__(self.obs_dim, self.act_dim, self.max_size)
+        self.__init__(self.obs_dim, self.act_dim, self.max_size, self.state_dim)
 
 
 

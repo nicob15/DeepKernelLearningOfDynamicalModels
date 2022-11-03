@@ -3,16 +3,14 @@ import torch.utils
 
 import os
 from utils import load_pickle, add_gaussian_noise
-from Replay_Buffer import ReplayBuffer
+from replay_buffer import ReplayBuffer
 import gpytorch
 import numpy as np
 
-from Plotter import plot_results
-from Models import DKLModel
-from VariationalTraining import VariationalKL
-from Trainer import train_DKL as train
-
-from modified_gaussian_likelihood import GaussianLikelihood
+from plotter import plot_results
+from models import SVDKL_AE_latent_dyn
+from variational_inference import VariationalKL
+from trainer import train_DKL as train
 
 import gc
 
@@ -44,7 +42,7 @@ parser.add_argument('--grid-size', type=int, default=32,
 
 parser.add_argument('--training', default=True,
                     help='Train the models.')
-parser.add_argument('--plotting', default=False,
+parser.add_argument('--plotting', default=True,
                     help='Plot the results.')
 parser.add_argument('--num-samples-plot', type=int, default=5,
                     help='Number of independent sampling from the distribution.')
@@ -73,7 +71,7 @@ parser.add_argument('--experiment', type=str, default='Pendulum',
                     help='Experiment.')
 parser.add_argument('--model-type', type=str, default='DKL',
                     help='Model type.')
-parser.add_argument('--training-dataset', type=str, default='pendulum-mid.pkl',
+parser.add_argument('--training-dataset', type=str, default='pendulum-train.pkl',
                     help='Training dataset.')
 parser.add_argument('--testing-dataset', type=str, default='pendulum_test.pkl',
                     help='Testing dataset.')
@@ -126,7 +124,6 @@ obs_dim_2 = args.observation_dim_h
 obs_dim_3 = args.observation_channels
 h_dim = args.hidden_dim
 
-
 # noise level on observations
 noise_level = args.measurement_noise_level
 
@@ -144,8 +141,9 @@ log_interval = args.log_interval
 jitter = args.jitter
 
 
-def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulum-mid.pkl',
+def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulum-train.pkl',
          testing_dataset='pendulum_test.pkl'):
+    
     # load data
     directory = os.path.dirname(os.path.abspath(__file__))
 
@@ -155,13 +153,12 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     data = load_pickle(folder)
     data_test = load_pickle(folder_test)
 
-    model = DKLModel(num_dim=latent_dim, a_dim=act_dim, h_dim=h_dim, exp=exp, grid_size=grid_size)
+    model = SVDKL_AE_latent_dyn(num_dim=latent_dim, a_dim=act_dim, h_dim=h_dim, grid_size=grid_size)
 
-    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=latent_dim, has_task_noise=False, has_global_noise=True)
-    likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=latent_dim, has_task_noise=False, has_global_noise=True)
-
-    #likelihood = GaussianLikelihood()
-    #likelihood_fwd = GaussianLikelihood()
+    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=latent_dim, has_task_noise=False,
+                                                                  has_global_noise=True)
+    likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=latent_dim, has_task_noise=False,
+                                                                      has_global_noise=True)
 
     variational_kl_term = VariationalKL(likelihood, model.gp_layer, num_data=len(data))
     variational_kl_term_fwd = VariationalKL(likelihood_fwd, model.fwd_model_DKL.gp_layer_2, num_data=len(data))
@@ -177,7 +174,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         # NOTE: Critical to avoid GPU leak
         gc.collect()
 
-        # Use the adam optimizer
+    # Use the adam optimizer
     optimizer = torch.optim.Adam([
         {'params': model.encoder.parameters()},
         {'params': model.decoder.parameters()},
@@ -190,22 +187,14 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         {'params': likelihood_fwd.parameters(), 'lr': lr_gp_lik},
         ], lr=lr, weight_decay=reg_coef)
 
-    #optimizer_var = torch.optim.Adam([
-    #    {'params': model.gp_layer.hyperparameters(), 'lr': 0.1*lr_gp},
-    #    {'params': model.gp_layer.variational_parameters(), 'lr': 0.1*lr_gp_var},
-    #    {'params': model.fwd_model_DKL.gp_layer_2.hyperparameters(), 'lr': 0.1*lr_gp},
-    #    {'params': model.fwd_model_DKL.gp_layer_2.variational_parameters(), 'lr': 0.1*lr_gp_var},
-    #    {'params': likelihood.parameters(), 'lr': 0.1*lr_gp_lik},
-    #    {'params': likelihood_fwd.parameters(), 'lr': 0.1*lr_gp_lik}])
-
     counter = 0
     train_loader = ReplayBuffer(obs_dim=(obs_dim_1, obs_dim_2, 6), act_dim=act_dim, size=len(data), state_dim=state_dim)
     for d in data:
-        train_loader.store(add_gaussian_noise(d[0]/255, noise_level=noise_level, clip=True).astype('float32'),
+        train_loader.store(add_gaussian_noise(d[0] / 255, noise_level=noise_level, clip=True).astype('float32'),
                            add_gaussian_noise(d[1], noise_level=noise_level_act).astype('float32'),
-                           d[2].astype('float32'),
-                           add_gaussian_noise(d[3]/255, noise_level=noise_level, clip=True).astype('float32'),
-                           d[4], d[5].astype('float32'))
+                           add_gaussian_noise(d[3] / 255, noise_level=noise_level, clip=True).astype('float32'),
+                           d[4],
+                           d[5].astype('float32'))
         counter += 1
 
     print(counter)
@@ -215,57 +204,43 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     for dt in data_test:
         test_loader.store(add_gaussian_noise(dt[0] / 255, noise_level=noise_level, clip=True).astype('float32'),
                           add_gaussian_noise(dt[1], noise_level=noise_level_act).astype('float32'),
-                          dt[2].astype('float32'),
                           add_gaussian_noise(dt[3] / 255, noise_level=noise_level, clip=True).astype('float32'),
-                          dt[4], dt[5].astype('float32'))
+                          dt[4],
+                          dt[5].astype('float32'))
 
     now = datetime.now()
     date_string = now.strftime("%d-%m-%Y_%Hh-%Mm-%Ss")
-
-    save_pth_dir =directory + '/Figures/' + str(exp) + '/' + str(mtype) + '/Noise_level_' + str(
-        noise_level)
-
+    save_pth_dir = directory + '/Results/' + str(exp) + '/' + str(mtype) + '/Noise_level_' + str(noise_level)
     if not os.path.exists(save_pth_dir):
         os.makedirs(save_pth_dir)
 
     if training:
         for epoch in range(1, max_epoch):
             with gpytorch.settings.cholesky_jitter(jitter):
-                train(epoch, batch_size, counter, train_loader, model, likelihood, likelihood_fwd,
-                    optimizer, max_epoch, variational_kl_term, variational_kl_term_fwd, k1, k2)
-
+                train(epoch=epoch, batch_size=batch_size, nr_data=counter, train_loader=train_loader, model=model,
+                      likelihood=likelihood, likelihood_fwd=likelihood_fwd, optimizer=optimizer,
+                      variational_kl_term=variational_kl_term, variational_kl_term_fwd=variational_kl_term_fwd, k1=k1,
+                      beta=k2)
             if epoch % log_interval == 0:
-
                 torch.save({'model': model.state_dict(), 'likelihood': likelihood.state_dict(),
                             'likelihood_fwd': likelihood_fwd.state_dict()}, save_pth_dir +'/DKL_Model_' + date_string+'.pth')
-                #if plotting:
-                #    model.eval()
-                #    likelihood.eval()
-                #    likelihood_fwd.eval()
-                #    with torch.no_grad(), gpytorch.settings.use_toeplitz(False), gpytorch.settings.fast_pred_var(), \
-                #            gpytorch.settings.cholesky_jitter(1e-1):
-                #        plot_results(model=model, likelihood=likelihood, likelihood_fwd=likelihood_fwd,
-                #                     test_loader=test_loader, exp=exp, mtype=mtype,latent_dim=latent_dim,
-                #                     noise_level=noise_level, state_dim=state_dim, obs_dim_1=obs_dim_1,
-                #                     obs_dim_2=obs_dim_2, num_samples_plot=num_samples_plot, batch_size=batch_size)
-
 
     torch.save({'model': model.state_dict(), 'likelihood': likelihood.state_dict(),
                 'likelihood_fwd': likelihood_fwd.state_dict()}, save_pth_dir + '/DKL_Model_' + date_string+'.pth')
 
-    model.eval()
-    likelihood.eval()
-    likelihood_fwd.eval()
-    with torch.no_grad(), gpytorch.settings.use_toeplitz(False), gpytorch.settings.fast_pred_var(), \
-            gpytorch.settings.cholesky_jitter(jitter):
-        plot_results(model=model, likelihood=likelihood, likelihood_fwd=likelihood_fwd,
-                     test_loader=test_loader, exp=exp, mtype=mtype, latent_dim=latent_dim,
-                     noise_level=noise_level, state_dim=state_dim, obs_dim_1=obs_dim_1,
-                     obs_dim_2=obs_dim_2, num_samples_plot=num_samples_plot, batch_size=batch_size)
+    if plotting:
+        model.eval()
+        likelihood.eval()
+        likelihood_fwd.eval()
+        with torch.no_grad(), gpytorch.settings.use_toeplitz(False), gpytorch.settings.fast_pred_var(), \
+                gpytorch.settings.cholesky_jitter(jitter):
+            plot_results(model=model, likelihood=likelihood, likelihood_fwd=likelihood_fwd, test_loader=test_loader,
+                         mtype=mtype, save_dir=save_pth_dir, PCA=False, obs_dim_1=obs_dim_1, obs_dim_2=obs_dim_2,
+                         num_samples_plot=1000)
 
 if __name__ == "__main__":
 
-    with gpytorch.settings.use_toeplitz(False):#, gpytorch.settings.fast_pred_var():
+    with gpytorch.settings.use_toeplitz(False):
         main(exp=exp, mtype=mtype, noise_level=noise_level, training_dataset=training_dataset,
              testing_dataset=testing_dataset)
     print('Finished Training the Representation Model!')
