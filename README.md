@@ -19,7 +19,7 @@ Our learning method is evaluated on the motion of a pendulum -- a well studied b
 * Pytorch (version 1.11 + CUDA 11.3
 * pip install -r requirement.txt
 
-### Generate dataset
+## Generate dataset
 
 **Pendulum**:
 ```bash
