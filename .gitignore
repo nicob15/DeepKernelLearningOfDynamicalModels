@@ -7,10 +7,12 @@ __pycache__/
 *.iml
 *.txt
 *.sbatch
+*.sbatch#
 *.sbatch~
 *.pth
 logs/
 Results/
+old_files/
 
 Data/
 Figures/
