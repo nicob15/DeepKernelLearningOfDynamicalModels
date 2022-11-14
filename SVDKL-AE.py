@@ -71,7 +71,7 @@ parser.add_argument('--experiment', type=str, default='Pendulum',
                     help='Experiment.')
 parser.add_argument('--model-type', type=str, default='DKL',
                     help='Model type.')
-parser.add_argument('--training-dataset', type=str, default='pendulum-train.pkl',
+parser.add_argument('--training-dataset', type=str, default='pendulum_train.pkl',
                     help='Training dataset.')
 parser.add_argument('--testing-dataset', type=str, default='pendulum_test.pkl',
                     help='Testing dataset.')
@@ -141,9 +141,9 @@ log_interval = args.log_interval
 jitter = args.jitter
 
 
-def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulum-train.pkl',
+def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulum_train.pkl',
          testing_dataset='pendulum_test.pkl'):
-    
+
     # load data
     directory = os.path.dirname(os.path.abspath(__file__))
 
@@ -155,9 +155,9 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
 
     model = SVDKL_AE_latent_dyn(num_dim=latent_dim, a_dim=act_dim, h_dim=h_dim, grid_size=grid_size)
 
-    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=latent_dim, has_task_noise=False,
+    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=0, has_task_noise=False,
                                                                   has_global_noise=True)
-    likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=latent_dim, has_task_noise=False,
+    likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=0, has_task_noise=False,
                                                                       has_global_noise=True)
 
     variational_kl_term = VariationalKL(likelihood, model.gp_layer, num_data=len(data))
@@ -232,11 +232,10 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         model.eval()
         likelihood.eval()
         likelihood_fwd.eval()
-        with torch.no_grad(), gpytorch.settings.use_toeplitz(False), gpytorch.settings.fast_pred_var(), \
-                gpytorch.settings.cholesky_jitter(jitter):
+        with torch.no_grad(), gpytorch.settings.fast_pred_var(), gpytorch.settings.cholesky_jitter(jitter):
             plot_results(model=model, likelihood=likelihood, likelihood_fwd=likelihood_fwd, test_loader=test_loader,
                          mtype=mtype, save_dir=save_pth_dir, PCA=False, obs_dim_1=obs_dim_1, obs_dim_2=obs_dim_2,
-                         num_samples_plot=1000)
+                         num_samples_plot=num_samples_plot)
 
 if __name__ == "__main__":
 

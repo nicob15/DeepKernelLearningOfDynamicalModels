@@ -19,9 +19,9 @@ parser.add_argument('--observation-dim-h', type=int, default=84,
                     help='Height of the input measurements (RGB images).')
 parser.add_argument('--test', default=False,
                     help='Generate training or testing dataset.')
-parser.add_argument('--training-dataset', type=str, default='pendulum_train1.pkl',
+parser.add_argument('--training-dataset', type=str, default='pendulum_train.pkl',
                     help='Training dataset.')
-parser.add_argument('--testing-dataset', type=str, default='pendulum_test1.pkl',
+parser.add_argument('--testing-dataset', type=str, default='pendulum_test.pkl',
                     help='Testing dataset.')
 parser.add_argument('--seed', type=int, default=1,
                     help='Random seed (default: 1).')

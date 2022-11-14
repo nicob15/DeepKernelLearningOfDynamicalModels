@@ -212,10 +212,12 @@ class Encoder(nn.Module):
         return self.encoder(x)
 
 class ForwardModelVAE(nn.Module):
-    def __init__(self, z_dim=20, h_dim=256, a_dim=1, fixed_std=True):
+    def __init__(self, z_dim=20, h_dim=256, a_dim=1, fixed_std=True, min_sigma=1e-4, max_sigma=1e1):
         super(ForwardModelVAE, self).__init__()
 
         self.fixed_std = fixed_std
+        self.min_sigma = min_sigma
+        self.max_sigma = max_sigma
 
         self.fc = nn.Linear(z_dim + a_dim, h_dim)
         self.fc1 = nn.Linear(h_dim, h_dim)
@@ -230,7 +232,9 @@ class ForwardModelVAE(nn.Module):
         if self.fixed_std:
             z_next_std = torch.ones_like(z_next_mu).detach()
         else:
-            z_next_std = F.relu(z_next_mu) + 1e-4
+            z_next_std = F.sigmoid(self.fc3(za))
+            z_next_std = self.min_sigma + (self.max_sigma - self.min_sigma) * z_next_std
+            #z_next_std = F.relu(z_next_mu) + 1e-4
         return z_next_mu, z_next_std
 
 class EncoderVAE(nn.Module):
@@ -436,3 +440,141 @@ class VAE(nn.Module):
         z = self.sampling(mu, torch.log(torch.square(std)))
         mu_next, std_next = self.fwd_model(z, a)
         return self.decoder(z), mu, std, z, mu_target, std_target, mu_next, std_next
+
+
+
+
+class ExactDKL_AE_latentdyn(gpytorch.Module):
+    def __init__(self, train_x, train_y, likelihood, likelihood_fw, num_dim=20, a_dim=1, h_dim=256, grid_size=32):
+        super(ExactDKL_AE_latentdyn, self).__init__()
+
+        self.DKL_AE = ExactDKL_AE(train_x, train_y, likelihood)
+        self.fw_model_DKL = ExactDKL_FWmodel(train_y, train_y, likelihood_fw)
+
+        # This module will scale the NN features so that they're nice values
+        self.scale_to_bounds = gpytorch.utils.grid.ScaleToBounds(-1., 1.)
+
+    def forward(self, x, a, x_next):
+        # We're first putting our data through a deep net (encoder)
+        mu_x, var_x, mean_z, covar_z, z, res = self.DKL_AE(x)
+
+        mu_x_next, var_x_next, mean_target, covar_target, z_target, res_target = self.DKL_AE(x_next)
+
+        res_fwd, mean_fwd, covar_fwd, z_next = self.fw_model_DKL(z, a)
+
+        return mu_x, var_x, mean_z, covar_z, z, res, mean_target, covar_target, res_target, mean_fwd, covar_fwd, res_fwd
+
+    def predict_dynamics(self, x, a, likelihood_fwd, likelihood):
+
+        n_samples = 1
+
+        res, mu, var, z = self.forward_encoder_DKL(x)
+        z = likelihood(res).sample(sample_shape=torch.Size([n_samples])).view(n_samples, self.num_dim).mean(0).view(1, self.num_dim)
+        # predicted distribution
+        res_fwd, mu_fwd, var_fwd, z_fwd = self.fwd_model_DKL(z, a)
+
+        #mu_x, var_x = self.decoder(likelihood_fwd(res_fwd).sample())
+        mu_x = self.decoder(likelihood(res).sample(sample_shape=torch.Size([n_samples])).view(n_samples, self.num_dim))[0].mean(0)
+
+        mu_x_2 = self.decoder(likelihood_fwd(res_fwd).sample(sample_shape=torch.Size([n_samples])).view(n_samples, self.num_dim))[0].mean(0)
+
+        return mu_x, mu_x_2
+
+    def predict_trajectory(self, x, a, likelihood_fwd, likelihood):
+
+        n_samples = 1
+        res, mu, var, z = self.forward_encoder_DKL(x)
+        z = likelihood(res).sample(sample_shape=torch.Size([n_samples])).view(n_samples, self.num_dim).mean(0).view(1, self.num_dim)
+        # predicted distribution
+        res_fwd, mu_fwd, var_fwd, z_fwd = self.fwd_model_DKL(z, a)
+
+        var = likelihood(res).variance
+        lower, upper = mu - torch.sqrt(var), mu + torch.sqrt(var)#likelihood(res).confidence_region()
+        lower_fwd, upper_fwd = likelihood_fwd(res_fwd).confidence_region()
+
+        mu_x = self.decoder(likelihood(res).sample(sample_shape=torch.Size([n_samples])).view(n_samples, self.num_dim))[0].mean(0)
+
+        mu_x_2 = self.decoder(likelihood_fwd(res_fwd).sample(sample_shape=torch.Size([n_samples])).view(n_samples, self.num_dim))[0].mean(0)
+
+        return mu, mu_fwd, lower, upper, lower_fwd, upper_fwd, mu_x, mu_x_2, z
+
+    def predict_latent_dynamics(self, z, a, likelihood_fwd):
+
+        n_samples = 1
+        # predicted distribution
+        mu = 1
+        var = 1
+        res_fwd, mu_fwd, var_fwd, z_fwd = self.fwd_model_DKL(z, a)
+        lower, upper = likelihood_fwd(res_fwd).confidence_region()
+        z_fwd = likelihood_fwd(res_fwd).sample()
+
+        mu_x, var_x = self.decoder(z_fwd)
+
+        return mu_x, mu_fwd, lower, upper, z_fwd
+
+
+class ExactDKL_AE(gpytorch.models.ExactGP):
+    def __init__(self, train_x, train_y, likelihood):
+        super(ExactDKL_AE, self).__init__(train_x, train_y, likelihood)
+
+        self.num_dim = 20
+        self.a_dim = 1
+        self.h_dim = 256
+        self.grid_size = 32
+
+        self.mean_module = gpytorch.means.ConstantMean()
+        self.covar_module = gpytorch.kernels.GridInterpolationKernel(
+            gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel(ard_num_dims=self.num_dim)), num_dims=self.num_dim,
+            grid_size=self.grid_size
+            )
+
+        self.encoder = Encoder(self.num_dim)  # NN model
+        self.decoder = StochasticDecoder(self.num_dim)  # NN model
+
+        # This module will scale the NN features so that they're nice values
+        self.scale_to_bounds = gpytorch.utils.grid.ScaleToBounds(-1., 1.)
+
+    def forward(self, x):
+        # We're first putting our data through a deep net (encoder)
+        projected_x = self.encoder(x)
+        projected_x = self.scale_to_bounds(projected_x)  # Make the NN values "nice"
+        mean_z = self.mean_module(projected_x)
+        covar_z = self.covar_module(projected_x)
+        res = gpytorch.distributions.MultivariateNormal(mean_z, covar_z)
+        z = res.rsample()
+
+        mu_x, var_x = self.decoder(x)
+
+        return mu_x, var_x, mean_z, covar_z, z, res
+
+class ExactDKL_FWmodel(gpytorch.models.ExactGP):
+    def __init__(self, train_x, train_y, likelihood):
+        super(ExactDKL_FWmodel, self).__init__(train_x, train_y, likelihood)
+
+        self.num_dim = 20
+        self.a_dim = 1
+        self.h_dim = 256
+        self.grid_size = 32
+
+        self.mean_module = gpytorch.means.ConstantMean()
+        self.covar_module = gpytorch.kernels.GridInterpolationKernel(
+            gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel(ard_num_dims=self.num_dim)), num_dims=self.num_dim,
+            grid_size=self.grid_size
+        )
+
+        self.fw_model = ForwardModel(z_dim=self.num_dim, a_dim=self.a_dim, h_dim=self.h_dim)
+
+        # This module will scale the NN features so that they're nice values
+        self.scale_to_bounds = gpytorch.utils.grid.ScaleToBounds(-1., 1.)
+
+    def forward(self, z, a):
+        # We're first putting our data through a deep net (encoder)
+        projected_z_next = self.fw_model(z, a)
+        projected_z_next = self.scale_to_bounds(projected_z_next)  # Make the NN values "nice"
+
+        mean_z_next = self.mean_module(projected_z_next)
+        covar_z_next = self.covar_module(projected_z_next)
+        res = gpytorch.distributions.MultivariateNormal(mean_z_next, covar_z_next)
+        z = res.rsample()
+        return res, mean_z_next, covar_z_next, z
+

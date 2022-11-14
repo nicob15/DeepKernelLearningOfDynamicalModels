@@ -27,12 +27,12 @@ def normalize(x):
 def closeAll():
     plt.close('all')
 
-def plot_reconstruction(obs, obs_rec, save_dir, mtype, nr_samples=24, obs_dim_1=84, obs_dim_2=84):
+def plot_reconstruction(obs, obs_rec, save_dir, mtype, nr_samples=80, obs_dim_1=84, obs_dim_2=84):
 
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-    save_dir1 = save_dir + '_obs_' + str(mtype)
-    save_dir2 = save_dir + '_obs_rec' + str(mtype)
+    save_dir1 = save_dir + '/obs_' + str(mtype)
+    save_dir2 = save_dir + '/obs_rec_' + str(mtype)
 
     obs = obs[:nr_samples, 3:6, :, :]
     obs_rec = obs_rec[:nr_samples, 3:6, :, :]
@@ -80,11 +80,11 @@ def plot_results(model, likelihood, likelihood_fwd, test_loader, mtype, save_dir
         z_2d = TSNE(n_components=2, learning_rate='auto').fit_transform(z)
         z = TSNE(n_components=3, learning_rate='auto').fit_transform(z)
         mu_2d = TSNE(n_components=2, learning_rate='auto').fit_transform(mu)
-        mu = TSNE(n_components=2, learning_rate='auto').fit_transform(mu)
+        mu = TSNE(n_components=3, learning_rate='auto').fit_transform(mu)
         z_next_2d = TSNE(n_components=2, learning_rate='auto').fit_transform(z_next)
-        z_next = TSNE(n_components=2, learning_rate='auto').fit_transform(z_next)
+        z_next = TSNE(n_components=3, learning_rate='auto').fit_transform(z_next)
         mu_fwd_2d = TSNE(n_components=2, learning_rate='auto').fit_transform(mu_fwd)
-        mu_fwd = TSNE(n_components=2, learning_rate='auto').fit_transform(mu_fwd)
+        mu_fwd = TSNE(n_components=3, learning_rate='auto').fit_transform(mu_fwd)
 
     angle = np.arctan2(s[:, 1], s[:, 0])
 
@@ -94,7 +94,7 @@ def plot_results(model, likelihood, likelihood_fwd, test_loader, mtype, save_dir
     ax.legend([p1], ['$z_{t}$ ~ p($z_{t}$|$x_{t}$)'])
     cbar = fig.colorbar(p1)
     cbar.set_label('angle', rotation=90)
-    plt.savefig(save_dir + 'latent_states_2d.png')
+    plt.savefig(save_dir + '/latent_states_2d.png')
     plt.close()
 
     fig = plt.figure(dpi=300)
@@ -103,7 +103,7 @@ def plot_results(model, likelihood, likelihood_fwd, test_loader, mtype, save_dir
     ax.legend([p1], ['$z_{t}$ ~ p($z_{t}$|$x_{t}$)'])
     cbar = fig.colorbar(p1)
     cbar.set_label('angle', rotation=90)
-    plt.savefig(save_dir + 'latent_states.png')
+    plt.savefig(save_dir + '/latent_states.png')
     plt.close()
 
     fig = plt.figure(dpi=300)
@@ -112,7 +112,7 @@ def plot_results(model, likelihood, likelihood_fwd, test_loader, mtype, save_dir
     ax.legend([p1], ["$z_{t+1}$ ~ p($z_{t+1}$|$z_{t}$,$u_{t}$)"])
     cbar = fig.colorbar(p1)
     cbar.set_label('angle', rotation=90)
-    plt.savefig(save_dir + 'latent_next_states_2d.png')
+    plt.savefig(save_dir + '/latent_next_states_2d.png')
     plt.close()
 
     fig = plt.figure(dpi=300)
@@ -121,7 +121,7 @@ def plot_results(model, likelihood, likelihood_fwd, test_loader, mtype, save_dir
     ax.legend([p1], ["$z_{t+1}$ ~ p($z_{t+1}$|$z_{t}$,$u_{t}$)"])
     cbar = fig.colorbar(p1)
     cbar.set_label('angle', rotation=90)
-    plt.savefig(save_dir + 'latent_next_states.png')
+    plt.savefig(save_dir + '/latent_next_states.png')
     plt.close()
 
     fig = plt.figure(dpi=300)
@@ -130,7 +130,7 @@ def plot_results(model, likelihood, likelihood_fwd, test_loader, mtype, save_dir
     ax.legend([p1], ['mean of p($z_{t}$|$x_{t}$)'])
     cbar = fig.colorbar(p1)
     cbar.set_label('angle', rotation=90)
-    plt.savefig(save_dir + 'latent_states_2d_mean.png')
+    plt.savefig(save_dir + '/latent_states_2d_mean.png')
     plt.close()
 
     fig = plt.figure(dpi=300)
@@ -139,7 +139,7 @@ def plot_results(model, likelihood, likelihood_fwd, test_loader, mtype, save_dir
     ax.legend([p1], ['mean of p($z_{t}$|$x_{t}$)'])
     cbar = fig.colorbar(p1)
     cbar.set_label('angle', rotation=90)
-    plt.savefig(save_dir + 'latent_states_mean.png')
+    plt.savefig(save_dir + '/latent_states_mean.png')
     plt.close()
 
     fig = plt.figure(dpi=300)
@@ -148,7 +148,7 @@ def plot_results(model, likelihood, likelihood_fwd, test_loader, mtype, save_dir
     ax.legend([p1], ['mean of p($z_{t+1}$|$z_{t}$,$u_{t}$)'])
     cbar = fig.colorbar(p1)
     cbar.set_label('angle', rotation=90)
-    plt.savefig(save_dir + 'latent_next_states_2d_mean.png')
+    plt.savefig(save_dir + '/latent_next_states_2d_mean.png')
     plt.close()
 
     fig = plt.figure(dpi=300)
@@ -157,7 +157,7 @@ def plot_results(model, likelihood, likelihood_fwd, test_loader, mtype, save_dir
     ax.legend([p1], ['mean of p($z_{t+1}$|$z_{t}$,$u_{t}$)'])
     cbar = fig.colorbar(p1)
     cbar.set_label('angle', rotation=90)
-    plt.savefig(save_dir + 'latent_next_states_mean.png')
+    plt.savefig(save_dir + '/latent_next_states_mean.png')
     plt.close()
 
 

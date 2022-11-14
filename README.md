@@ -16,20 +16,21 @@ Our learning method is evaluated on the motion of a pendulum -- a well studied b
 ## Requirements
 
 * Python 3.8
-* Pytorch (version 1.11 + CUDA 11.3
-* pip install -r requirement.txt
+* Pytorch (version 1.11 + CUDA 11.3)
+* pip install -r requirements.txt
 
-## Generate dataset
+## Generate datasets
 
 **Pendulum**:
 ```bash
-to be added
+python generate_dataset.py --env_name='Pendulum-v1' --training-dataset='pendulum_train.pkl' --seed=1
+
+python generate_dataset.py --env_name='Pendulum-v1' --training-dataset='pendulum_train.pkl' --seed=2
 ```
 
-
-### Train the model
+## Train the model
 ```bash
-to be added
+python SVDKL-AE.py --training-dataset='pendulum_train.pkl' --testing-dataset='pendulum_test.pkl'
 ```
 
 ## Cite
