@@ -54,8 +54,6 @@ def plot_results(model, test_loader, mtype, save_dir, PCA=False, obs_dim_1=84, o
 
     if mtype == 'DKL':
         mu_x, _, mu, _, z, res, _, _, _, mu_fwd, _, res_fwd, z_next = model(obs, act, next_obs)
-        #z = likelihood(res).sample(sample_shape=torch.Size([1])).mean(0)
-        #z_next = likelihood_fwd(res_fwd).sample(sample_shape=torch.Size([1])).mean(0)
         plot_reconstruction(obs, mu_x, save_dir, mtype=mtype, obs_dim_1=obs_dim_1, obs_dim_2=obs_dim_2)
 
     if mtype == 'VAE':

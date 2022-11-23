@@ -159,8 +159,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
                                                                       has_global_noise=True)
 
     model = SVDKL_AE_latent_dyn(num_dim=latent_dim, a_dim=act_dim, h_dim=h_dim, grid_size=grid_size, lik=likelihood,
-                                lik_fwd=likelihood_fwd,)
-
+                                lik_fwd=likelihood_fwd)
 
     variational_kl_term = VariationalKL(model.AE_DKL.likelihood, model.AE_DKL.gp_layer, num_data=len(data))
     variational_kl_term_fwd = VariationalKL(model.fwd_model_DKL.likelihood, model.fwd_model_DKL.gp_layer_2, num_data=len(data))

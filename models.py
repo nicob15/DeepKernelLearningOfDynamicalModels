@@ -170,36 +170,6 @@ class Encoder(nn.Module):
     def forward(self, x):
         return self.encoder(x)
 
-class Encoder_ReactionDiffusion(nn.Module):
-    def __init__(self, z_dim=20, h_dim=256):
-        super(Encoder_ReactionDiffusion, self).__init__()
-
-        self.conv1 = nn.Conv2d(1, 32, (3, 3), stride=(2, 2))
-        self.conv2 = nn.Conv2d(32, 32, (3, 3), stride=(1, 1))
-        self.batch1 = nn.BatchNorm2d(32)
-        self.conv3 = nn.Conv2d(32, 32, (3, 3), stride=(1, 1))
-        self.conv4 = nn.Conv2d(32, 32, (3, 3), stride=(1, 1))
-        self.batch2 = nn.BatchNorm2d(32)
-        out_dim = OUT_DIM_RD[4]
-        self.fc = nn.Linear(32 * out_dim * out_dim, h_dim)
-        self.fc1 = nn.Linear(h_dim, z_dim)
-
-    def encoder(self, x):
-        x = F.elu(self.conv1(x))
-        x = F.elu(self.conv2(x))
-        x = self.batch1(x)
-        x = F.elu(self.conv3(x))
-        x = F.elu(self.conv4(x))
-        x = self.batch2(x)
-        x = torch.flatten(x, start_dim=1)
-        x = F.elu(self.fc(x))
-        x = self.fc1(x)
-        return x
-
-    def forward(self, x):
-        return self.encoder(x)
-
-
 class ForwardModelVAE(nn.Module):
     def __init__(self, z_dim=20, h_dim=256, a_dim=1, fixed_std=True, min_sigma=1e-4, max_sigma=1e1):
         super(ForwardModelVAE, self).__init__()
@@ -223,7 +193,6 @@ class ForwardModelVAE(nn.Module):
         else:
             z_next_std = F.sigmoid(self.fc3(za))
             z_next_std = self.min_sigma + (self.max_sigma - self.min_sigma) * z_next_std
-            #z_next_std = F.relu(z_next_mu) + 1e-4
         return z_next_mu, z_next_std
 
 class EncoderVAE(nn.Module):
@@ -331,66 +300,6 @@ class StochasticDecoder(nn.Module):
 
     def forward(self, x):
         return self.decoder(x)
-
-class StochasticDecoder_ReactionDiffusion(nn.Module):
-    def __init__(self, z_dim=20):
-        super(StochasticDecoder_ReactionDiffusion, self).__init__()
-
-        # decoder part
-        out_dim = OUT_DIM_RD[4]
-        self.fcz = nn.Linear(z_dim, 32 * out_dim * out_dim)
-        self.unflatten = nn.Unflatten(dim=1, unflattened_size=(32, out_dim, out_dim))
-        self.deconv1 = nn.ConvTranspose2d(32, 32, (3, 3), stride=(1, 1))
-        self.deconv2 = nn.ConvTranspose2d(32, 32, (3, 3), stride=(1, 1))
-        self.batch3 = nn.BatchNorm2d(32)
-        self.deconv3 = nn.ConvTranspose2d(32, 32, (3, 3), stride=(1, 1))
-        self.deconv4 = nn.ConvTranspose2d(32, 1, (3, 3), stride=(2, 2), output_padding=(1, 1))
-        self.batch4 = nn.BatchNorm2d(32)
-
-    def sampling(self, mu, log_var):
-        std = torch.exp(0.5 * log_var)
-        eps = torch.randn_like(std)
-        return eps.mul(std).add_(mu)  # return z sample
-
-    def decoder(self, z):
-        z = F.elu(self.fcz(z))
-        z = self.unflatten(z)
-        z = self.batch3(z)
-        z = F.elu(self.deconv1(z))
-        z = F.elu(self.deconv2(z))
-        z = self.batch4(z)
-        z = F.elu(self.deconv3(z))
-        mu = self.deconv4(z)
-        std = torch.ones_like(mu).detach()
-        return mu, std
-
-    def forward(self, x):
-        return self.decoder(x)
-
-
-class StochasticVAE(nn.Module):
-    def __init__(self, z_dim, h_dim, a_dim, fixed_std):
-        super(StochasticVAE, self).__init__()
-
-        self.encoder = EncoderVAE(z_dim)
-        self.decoder = StochasticDecoder(z_dim)
-
-        self.fwd_model = ForwardModelVAE(z_dim, h_dim, a_dim, fixed_std=fixed_std)
-
-    def sampling(self, mu, std):
-        std = torch.exp(0.5 * torch.log(torch.square(std)))
-        eps = torch.randn_like(std)
-        return eps.mul(std).add_(mu)  # return z sample
-
-    def forward(self, x, a, x_next):
-        mu, std, _ = self.encoder(x)
-        mu_target, std_target, _ = self.encoder(x_next)
-        z = self.sampling(mu, std)
-        z_target = self.sampling(mu_target, std_target)
-        mu_next, std_next = self.fwd_model(z, a)
-        z_next = self.sampling(mu_next, std_next)
-        mu_x, std_x = self.decoder(z)
-        return mu_x, std_x, mu, std, z, mu_target, std_target, z_target, mu_next, std_next, z_next
 
 class VAE(nn.Module):
     def __init__(self, z_dim, h_dim, a_dim):
