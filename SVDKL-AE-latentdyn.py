@@ -44,7 +44,7 @@ parser.add_argument('--training', default=True,
                     help='Train the models.')
 parser.add_argument('--plotting', default=True,
                     help='Plot the results.')
-parser.add_argument('--num-samples-plot', type=int, default=5,
+parser.add_argument('--num-samples-plot', type=int, default=200,
                     help='Number of independent sampling from the distribution.')
 
 parser.add_argument('--hidden-dim', type=int, default=512,
@@ -153,21 +153,21 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     data = load_pickle(folder)
     data_test = load_pickle(folder_test)
 
-    model = SVDKL_AE_latent_dyn(num_dim=latent_dim, a_dim=act_dim, h_dim=h_dim, grid_size=grid_size)
-
     likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=0, has_task_noise=False,
                                                                   has_global_noise=True)
     likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=0, has_task_noise=False,
                                                                       has_global_noise=True)
 
-    variational_kl_term = VariationalKL(likelihood, model.gp_layer, num_data=len(data))
-    variational_kl_term_fwd = VariationalKL(likelihood_fwd, model.fwd_model_DKL.gp_layer_2, num_data=len(data))
+    model = SVDKL_AE_latent_dyn(num_dim=latent_dim, a_dim=act_dim, h_dim=h_dim, grid_size=grid_size, lik=likelihood,
+                                lik_fwd=likelihood_fwd,)
+
+
+    variational_kl_term = VariationalKL(model.AE_DKL.likelihood, model.AE_DKL.gp_layer, num_data=len(data))
+    variational_kl_term_fwd = VariationalKL(model.fwd_model_DKL.likelihood, model.fwd_model_DKL.gp_layer_2, num_data=len(data))
 
     # If you run this example without CUDA, I hope you like waiting!
     if torch.cuda.is_available():
         model = model.cuda()
-        likelihood = likelihood.cuda()
-        likelihood_fwd = likelihood_fwd.cuda()
         variational_kl_term = variational_kl_term.cuda()
         variational_kl_term_fwd = variational_kl_term_fwd.cuda()
 
@@ -176,15 +176,15 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
 
     # Use the adam optimizer
     optimizer = torch.optim.Adam([
-        {'params': model.encoder.parameters()},
-        {'params': model.decoder.parameters()},
+        {'params': model.AE_DKL.encoder.parameters()},
+        {'params': model.AE_DKL.decoder.parameters()},
         {'params': model.fwd_model_DKL.fwd_model.parameters()},
-        {'params': model.gp_layer.hyperparameters(), 'lr': lr_gp},
-        {'params': model.gp_layer.variational_parameters(), 'lr': lr_gp_var},
+        {'params': model.AE_DKL.gp_layer.hyperparameters(), 'lr': lr_gp},
+        {'params': model.AE_DKL.gp_layer.variational_parameters(), 'lr': lr_gp_var},
         {'params': model.fwd_model_DKL.gp_layer_2.hyperparameters(), 'lr': lr_gp},
         {'params': model.fwd_model_DKL.gp_layer_2.variational_parameters(), 'lr': lr_gp_var},
-        {'params': likelihood.parameters(), 'lr': lr_gp_lik},
-        {'params': likelihood_fwd.parameters(), 'lr': lr_gp_lik},
+        {'params': model.AE_DKL.likelihood.parameters(), 'lr': lr_gp_lik},
+        {'params': model.fwd_model_DKL.likelihood.parameters(), 'lr': lr_gp_lik},
         ], lr=lr, weight_decay=reg_coef)
 
     counter = 0
@@ -218,24 +218,22 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         for epoch in range(1, max_epoch):
             with gpytorch.settings.cholesky_jitter(jitter):
                 train(epoch=epoch, batch_size=batch_size, nr_data=counter, train_loader=train_loader, model=model,
-                      likelihood=likelihood, likelihood_fwd=likelihood_fwd, optimizer=optimizer,
-                      variational_kl_term=variational_kl_term, variational_kl_term_fwd=variational_kl_term_fwd, k1=k1,
-                      beta=k2)
+                      optimizer=optimizer, variational_kl_term=variational_kl_term,
+                      variational_kl_term_fwd=variational_kl_term_fwd, k1=k1, beta=k2)
             if epoch % log_interval == 0:
-                torch.save({'model': model.state_dict(), 'likelihood': likelihood.state_dict(),
-                            'likelihood_fwd': likelihood_fwd.state_dict()}, save_pth_dir +'/DKL_Model_' + date_string+'.pth')
+                torch.save({'model': model.state_dict(), 'likelihood': model.AE_DKL.likelihood.state_dict(),
+                            'likelihood_fwd': model.fwd_model_DKL.likelihood.state_dict()}, save_pth_dir +'/DKL_Model_' + date_string+'.pth')
 
-    torch.save({'model': model.state_dict(), 'likelihood': likelihood.state_dict(),
-                'likelihood_fwd': likelihood_fwd.state_dict()}, save_pth_dir + '/DKL_Model_' + date_string+'.pth')
+    torch.save({'model': model.state_dict(), 'likelihood': model.AE_DKL.likelihood.state_dict(),
+                'likelihood_fwd': model.fwd_model_DKL.likelihood.state_dict()}, save_pth_dir + '/DKL_Model_' + date_string + '.pth')
 
     if plotting:
         model.eval()
-        likelihood.eval()
-        likelihood_fwd.eval()
+        model.AE_DKL.likelihood.eval()
+        model.fwd_model_DKL.likelihood.eval()
         with torch.no_grad(), gpytorch.settings.fast_pred_var(), gpytorch.settings.cholesky_jitter(jitter):
-            plot_results(model=model, likelihood=likelihood, likelihood_fwd=likelihood_fwd, test_loader=test_loader,
-                         mtype=mtype, save_dir=save_pth_dir, PCA=False, obs_dim_1=obs_dim_1, obs_dim_2=obs_dim_2,
-                         num_samples_plot=num_samples_plot)
+            plot_results(model=model, test_loader=test_loader, mtype=mtype, save_dir=save_pth_dir, PCA=False,
+                         obs_dim_1=obs_dim_1, obs_dim_2=obs_dim_2, num_samples_plot=num_samples_plot)
 
 if __name__ == "__main__":
 

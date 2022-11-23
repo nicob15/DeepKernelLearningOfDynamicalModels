@@ -61,6 +61,3 @@ class ReplayBuffer:
     def clear_memory(self):
         self.__init__(self.obs_dim, self.act_dim, self.max_size, self.state_dim)
 
-
-
-

@@ -30,7 +30,7 @@ python generate_dataset.py --env_name='Pendulum-v1' --training-dataset='pendulum
 
 ## Train the model
 ```bash
-python SVDKL-AE.py --training-dataset='pendulum_train.pkl' --testing-dataset='pendulum_test.pkl'
+python SVDKL-AE-latentdyn.py --training-dataset='pendulum_train.pkl' --testing-dataset='pendulum_test.pkl'
 ```
 
 ## Cite

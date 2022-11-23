@@ -39,21 +39,35 @@ class GaussianProcessLayer(gpytorch.models.ApproximateGP):
         covar = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean, covar)
 
-class SVDKL_AE_latent_dyn(gpytorch.Module):
-    def __init__(self, num_dim, grid_bounds=(-10., 10.), a_dim=1, h_dim=32, grid_size=32):
+class SVDKL_AE_latent_dyn(nn.Module):
+    def __init__(self, num_dim, lik, lik_fwd, grid_bounds=(-10., 10.), a_dim=1, h_dim=32, grid_size=32, use_action=True):
         super(SVDKL_AE_latent_dyn, self).__init__()
+
+        self.AE_DKL = SVDKL_AE(num_dim=num_dim, grid_bounds=grid_bounds, h_dim=h_dim, grid_size=grid_size, lik=lik)
+        self.fwd_model_DKL = Forward_DKLModel(num_dim=num_dim, grid_bounds=grid_bounds, h_dim=h_dim, a_dim=a_dim,
+                                              grid_size=grid_size, lik=lik_fwd, use_action=use_action)  # DKL forward model
+
+    def forward(self, x, a, x_next):
+        mu_x, var_x, res, mu, var, z = self.AE_DKL(x)
+        mu_x_target, var_x_target, res_target, mu_target, var_target, z_target = self.AE_DKL(x_next)
+        res_fwd, mu_fwd, var_fwd, z_fwd = self.fwd_model_DKL(z, a)
+        return mu_x, var_x, mu, var, z, res, mu_target, var_target, res_target, mu_fwd, var_fwd, res_fwd, z_fwd
+
+class SVDKL_AE(gpytorch.Module):
+    def __init__(self, num_dim, lik, grid_bounds=(-10., 10.), h_dim=32, grid_size=32):
+        super(SVDKL_AE, self).__init__()
         self.gp_layer = GaussianProcessLayer(num_dim=num_dim, grid_bounds=grid_bounds, grid_size=grid_size)
         self.grid_bounds = grid_bounds
         self.num_dim = num_dim
+        self.likelihood = lik
 
-        self.encoder = Encoder(self.num_dim) # NN model
-        self.decoder = StochasticDecoder(self.num_dim) # NN model
-        self.fwd_model_DKL = Forward_DKLModel(num_dim=num_dim, grid_bounds=grid_bounds, h_dim=h_dim, a_dim=a_dim, grid_size=grid_size) # DKL forward model
+        self.encoder = Encoder(self.num_dim, h_dim) # NN model
+        self.decoder = StochasticDecoder(self.num_dim)  # NN model
 
         # This module will scale the NN features so that they're nice values
         self.scale_to_bounds = gpytorch.utils.grid.ScaleToBounds(self.grid_bounds[0], self.grid_bounds[1])
 
-    def encoder_DKL(self, x):
+    def forward(self, x):
         features = self.encoder(x)
         features = self.scale_to_bounds(features)
         # This next line makes it so that we learn a GP for each feature
@@ -67,25 +81,22 @@ class SVDKL_AE_latent_dyn(gpytorch.Module):
             res = self.gp_layer(features)
         mean = res.mean
         var = res.variance
-        z = res.rsample()
-        return res, mean, var, z
+        z = self.likelihood(res).rsample()
 
-
-    def forward(self, x, a, x_next):
-        res, mu, var, z = self.encoder_DKL(x)
-        res_target, mu_target, var_target, z_target = self.encoder_DKL(x_next)
         mu_x, var_x = self.decoder.decoder(z)
-        res_fwd, mu_fwd, var_fwd, z_fwd = self.fwd_model_DKL(z, a)
-        return mu_x, var_x, mu, var, z, res, mu_target, var_target, res_target, mu_fwd, var_fwd, res_fwd
+
+        return mu_x, var_x, res, mean, var, z
 
 class Forward_DKLModel(gpytorch.Module):
-    def __init__(self, num_dim, grid_bounds=(-100., 100.), h_dim=256, a_dim=1, grid_size=32):
+    def __init__(self, num_dim, lik, grid_bounds=(-100., 100.), h_dim=256, a_dim=1, grid_size=32, use_action=True):
         super(Forward_DKLModel, self).__init__()
         self.gp_layer_2 = GaussianProcessLayer(num_dim=num_dim, grid_bounds=grid_bounds, grid_size=grid_size)
         self.grid_bounds = grid_bounds
         self.num_dim = num_dim
+        self.use_action = use_action
+        self.likelihood = lik
 
-        self.fwd_model = ForwardModel(num_dim, h_dim, a_dim) # NN model
+        self.fwd_model = ForwardModel(num_dim, h_dim, a_dim, use_action) # NN model
 
         # This module will scale the NN features so that they're nice values
         self.scale_to_bounds = gpytorch.utils.grid.ScaleToBounds(self.grid_bounds[0], self.grid_bounds[1])
@@ -104,12 +115,14 @@ class Forward_DKLModel(gpytorch.Module):
             res = self.gp_layer_2(features)
         mean = res.mean
         var = res.variance
-        z = res.rsample()
+        z = self.likelihood(res).rsample()
         return res, mean, var, z
 
 class ForwardModel(nn.Module):
-    def __init__(self, z_dim=20, h_dim=256, a_dim=1):
+    def __init__(self, z_dim=20, h_dim=256, a_dim=1, use_action=True):
         super(ForwardModel, self).__init__()
+
+        self.use_action = use_action
 
         self.fc = nn.Linear(z_dim + a_dim, h_dim)
         self.fc1 = nn.Linear(h_dim, h_dim)
@@ -119,14 +132,17 @@ class ForwardModel(nn.Module):
         self.batch = nn.BatchNorm1d(z_dim)
 
     def forward(self, z, a):
-        za = torch.cat([z, a], dim=1)
+        if self.use_action:
+            za = torch.cat([z, a], dim=1)
+        else:
+            za = z
         za = F.elu(self.fc(za))
         za = F.elu(self.fc1(za))
         features = self.fc2(za)
         return features
 
 class Encoder(nn.Module):
-    def __init__(self, z_dim=20):
+    def __init__(self, z_dim=20, h_dim=256):
         super(Encoder, self).__init__()
 
         self.conv1 = nn.Conv2d(6, 32, (3, 3), stride=(2, 2))
@@ -136,8 +152,8 @@ class Encoder(nn.Module):
         self.conv4 = nn.Conv2d(32, 32, (3, 3), stride=(1, 1))
         self.batch2 = nn.BatchNorm2d(32)
         out_dim = OUT_DIM[4]
-        self.fc = nn.Linear(32 * out_dim * out_dim, 256)
-        self.fc1 = nn.Linear(256, z_dim)
+        self.fc = nn.Linear(32 * out_dim * out_dim, h_dim)
+        self.fc1 = nn.Linear(h_dim, z_dim)
 
     def encoder(self, x):
         x = F.elu(self.conv1(x))
@@ -153,6 +169,36 @@ class Encoder(nn.Module):
 
     def forward(self, x):
         return self.encoder(x)
+
+class Encoder_ReactionDiffusion(nn.Module):
+    def __init__(self, z_dim=20, h_dim=256):
+        super(Encoder_ReactionDiffusion, self).__init__()
+
+        self.conv1 = nn.Conv2d(1, 32, (3, 3), stride=(2, 2))
+        self.conv2 = nn.Conv2d(32, 32, (3, 3), stride=(1, 1))
+        self.batch1 = nn.BatchNorm2d(32)
+        self.conv3 = nn.Conv2d(32, 32, (3, 3), stride=(1, 1))
+        self.conv4 = nn.Conv2d(32, 32, (3, 3), stride=(1, 1))
+        self.batch2 = nn.BatchNorm2d(32)
+        out_dim = OUT_DIM_RD[4]
+        self.fc = nn.Linear(32 * out_dim * out_dim, h_dim)
+        self.fc1 = nn.Linear(h_dim, z_dim)
+
+    def encoder(self, x):
+        x = F.elu(self.conv1(x))
+        x = F.elu(self.conv2(x))
+        x = self.batch1(x)
+        x = F.elu(self.conv3(x))
+        x = F.elu(self.conv4(x))
+        x = self.batch2(x)
+        x = torch.flatten(x, start_dim=1)
+        x = F.elu(self.fc(x))
+        x = self.fc1(x)
+        return x
+
+    def forward(self, x):
+        return self.encoder(x)
+
 
 class ForwardModelVAE(nn.Module):
     def __init__(self, z_dim=20, h_dim=256, a_dim=1, fixed_std=True, min_sigma=1e-4, max_sigma=1e1):
@@ -285,6 +331,42 @@ class StochasticDecoder(nn.Module):
 
     def forward(self, x):
         return self.decoder(x)
+
+class StochasticDecoder_ReactionDiffusion(nn.Module):
+    def __init__(self, z_dim=20):
+        super(StochasticDecoder_ReactionDiffusion, self).__init__()
+
+        # decoder part
+        out_dim = OUT_DIM_RD[4]
+        self.fcz = nn.Linear(z_dim, 32 * out_dim * out_dim)
+        self.unflatten = nn.Unflatten(dim=1, unflattened_size=(32, out_dim, out_dim))
+        self.deconv1 = nn.ConvTranspose2d(32, 32, (3, 3), stride=(1, 1))
+        self.deconv2 = nn.ConvTranspose2d(32, 32, (3, 3), stride=(1, 1))
+        self.batch3 = nn.BatchNorm2d(32)
+        self.deconv3 = nn.ConvTranspose2d(32, 32, (3, 3), stride=(1, 1))
+        self.deconv4 = nn.ConvTranspose2d(32, 1, (3, 3), stride=(2, 2), output_padding=(1, 1))
+        self.batch4 = nn.BatchNorm2d(32)
+
+    def sampling(self, mu, log_var):
+        std = torch.exp(0.5 * log_var)
+        eps = torch.randn_like(std)
+        return eps.mul(std).add_(mu)  # return z sample
+
+    def decoder(self, z):
+        z = F.elu(self.fcz(z))
+        z = self.unflatten(z)
+        z = self.batch3(z)
+        z = F.elu(self.deconv1(z))
+        z = F.elu(self.deconv2(z))
+        z = self.batch4(z)
+        z = F.elu(self.deconv3(z))
+        mu = self.deconv4(z)
+        std = torch.ones_like(mu).detach()
+        return mu, std
+
+    def forward(self, x):
+        return self.decoder(x)
+
 
 class StochasticVAE(nn.Module):
     def __init__(self, z_dim, h_dim, a_dim, fixed_std):
