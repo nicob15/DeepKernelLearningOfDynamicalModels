@@ -34,7 +34,7 @@ python SVDKL-AE-latentdyn.py --training-dataset='pendulum_train.pkl' --testing-d
 ```
 
 ## Cite
-If you use this code in your own work, please cite our papers:
+If you use this code in your own work, please cite our paper:
 ```
 @article{botteghi2022deep,
   title={Deep Kernel Learning of Dynamical Models from High-Dimensional Noisy Data},
