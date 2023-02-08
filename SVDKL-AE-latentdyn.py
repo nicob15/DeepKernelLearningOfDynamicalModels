@@ -252,10 +252,10 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         torch.save({'model': model.state_dict(), 'likelihood': model.AE_DKL.likelihood.state_dict(),
                     'likelihood_fwd': model.fwd_model_DKL.likelihood.state_dict()}, save_pth_dir + '/DKL_Model_' + date_string + '.pth')
 
-    checkpoint = torch.load(save_pth_dir + '/DKL_Model_07-02-2023_20h-02m-31s.pth')
-    model.load_state_dict(checkpoint['model'])
-    model.AE_DKL.likelihood.load_state_dict(checkpoint['likelihood'])
-    model.fwd_model_DKL.likelihood.load_state_dict(checkpoint['likelihood_fwd'])
+    # checkpoint = torch.load(save_pth_dir + '/DKL_Model_07-02-2023_20h-02m-31s.pth')
+    # model.load_state_dict(checkpoint['model'])
+    # model.AE_DKL.likelihood.load_state_dict(checkpoint['likelihood'])
+    # model.fwd_model_DKL.likelihood.load_state_dict(checkpoint['likelihood_fwd'])
     if plotting:
         model.eval()
         model.AE_DKL.likelihood.eval()
