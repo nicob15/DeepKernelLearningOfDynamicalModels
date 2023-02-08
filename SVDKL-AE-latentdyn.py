@@ -205,6 +205,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     optimizer = [optimizer, optimizer_var1, optimizer_var2]
 
     counter = 0
+    print("load training data")
     train_loader = ReplayBuffer(obs_dim=(obs_dim_1, obs_dim_2, 6), act_dim=act_dim, size=len(data), state_dim=state_dim)
     for d in data:
         train_loader.store(add_gaussian_noise(d[0] / 255, noise_level=noise_level, clip=True).astype('float32'),
@@ -215,7 +216,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         counter += 1
 
     print(counter)
-
+    print("load testing data")
     test_loader = ReplayBuffer(obs_dim=(obs_dim_1, obs_dim_2, obs_dim_3), act_dim=act_dim, size=len(data_test),
                                state_dim=state_dim)
     counter_t = 0
@@ -235,6 +236,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         os.makedirs(save_pth_dir)
 
     if training:
+        print("start training...")
         for epoch in range(1, max_epoch):
             with gpytorch.settings.cholesky_jitter(jitter):
                 train(epoch=epoch, batch_size=batch_size, nr_data=counter, train_loader=train_loader, model=model,
