@@ -7,6 +7,8 @@ import argparse
 from logger import Logger
 from utils import stack_frames
 
+from Envs.DoublePendulum import AcrobotEnv
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--env-name', type=str, default='Pendulum-v1',
@@ -42,10 +44,18 @@ num_episodes = args.num_episodes
 seed = args.seed
 random_policy = args.random_policy
 
-env = gym.make(env_name)
-state_dim = env.observation_space.shape[0]
-action_dim = env.action_space.shape[0]
-max_action = float(env.action_space.high[0])
+
+
+if env_name == 'Acrobot-v1':
+    env = AcrobotEnv()
+    state_dim = env.observation_space.shape[0]
+    action_dim = 1
+    max_action = 1.0
+else:
+    env = gym.make(env_name)
+    state_dim = env.observation_space.shape[0]
+    action_dim = env.action_space.shape[0]
+    max_action = float(env.action_space.high[0])
 
 directory = os.path.dirname(os.path.abspath(__file__))
 folder = os.path.join(directory + '/Data/')
@@ -67,18 +77,25 @@ for episode in range(num_episodes):
     for step in range(max_steps):
         obs = stack_frames(prev_frame, frame, obs_dim1, obs_dim2)
         if random_policy:
-            action = env.action_space.sample()
+            if env_name == 'Pendulum-v1':
+                action = np.array([0.0])#1#env.action_space.sample() #always apply no torque to theta 2
+            if env_name == 'Acrobot-v1':
+                action = 1 #always apply no torque to theta 2
         else:
             pass
             # action = policy(observation)
         next_state, reward, done, info = env.step(action)
+        #env.render()
         next_frame = np.array(env.render(mode='rgb_array'))
         next_obs = stack_frames(frame, next_frame, obs_dim1, obs_dim2)
 
         if step == max_steps - 1:
             done = True
 
-        logger.obslog((obs, action, reward, next_obs, done, state))
+        if env_name == 'Pendulum-v1':
+            logger.obslog((obs, action, reward, next_obs, done, state))
+        if env_name == 'Acrobot-v1':
+            logger.obslog((obs, np.array([action]), reward, next_obs, done, state))
         prev_frame = frame
         frame = next_frame
         state = next_state

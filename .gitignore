@@ -12,6 +12,7 @@ __pycache__/
 *.pth
 logs/
 Results/
+Envs/
 old_files/
 
 Data/

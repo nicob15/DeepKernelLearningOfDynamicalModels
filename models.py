@@ -53,6 +53,24 @@ class SVDKL_AE_latent_dyn(nn.Module):
         res_fwd, mu_fwd, var_fwd, z_fwd = self.fwd_model_DKL(z, a)
         return mu_x, var_x, mu, var, z, res, mu_target, var_target, res_target, mu_fwd, var_fwd, res_fwd, z_fwd
 
+    def predict_dynamics(self, z, a, samples=1):
+        res_fwd, mu_fwd, var_fwd, z_fwd = self.fwd_model_DKL(z, a)
+        if samples == 1:
+            mu_x_rec, _ = self.AE_DKL.decoder(z_fwd)
+        else:
+            mu_x_recs = torch.zeros((samples, 6, 84, 84))
+            z_fwd = self.fwd_model_DKL.likelihood(res_fwd).sample(sample_shape=torch.Size([samples]))
+            for i in range(z_fwd.shape[0]):
+                mu_x_recs[i], _ = self.AE_DKL.decoder(z_fwd[i])
+            mu_x_rec = mu_x_recs.mean(0)
+            z_fwd = z_fwd.mean(0)
+        return mu_x_rec, z_fwd, mu_fwd, res_fwd
+
+    def predict_dynamics_mean(self, mu, a):
+        res_fwd, mu_fwd, var_fwd, z_fwd = self.fwd_model_DKL(mu, a)
+        mu_x_rec, _ = self.AE_DKL.decoder(mu_fwd)
+        return mu_x_rec, z_fwd, mu_fwd, res_fwd
+
 class SVDKL_AE(gpytorch.Module):
     def __init__(self, num_dim, lik, grid_bounds=(-10., 10.), h_dim=32, grid_size=32):
         super(SVDKL_AE, self).__init__()
@@ -88,7 +106,7 @@ class SVDKL_AE(gpytorch.Module):
         return mu_x, var_x, res, mean, var, z
 
 class Forward_DKLModel(gpytorch.Module):
-    def __init__(self, num_dim, lik, grid_bounds=(-100., 100.), h_dim=256, a_dim=1, grid_size=32, use_action=True):
+    def __init__(self, num_dim, lik, grid_bounds=(-10., 10.), h_dim=256, a_dim=1, grid_size=32, use_action=True):
         super(Forward_DKLModel, self).__init__()
         self.gp_layer_2 = GaussianProcessLayer(num_dim=num_dim, grid_bounds=grid_bounds, grid_size=grid_size)
         self.grid_bounds = grid_bounds
@@ -124,7 +142,11 @@ class ForwardModel(nn.Module):
 
         self.use_action = use_action
 
-        self.fc = nn.Linear(z_dim + a_dim, h_dim)
+        self.action_repeat = max(1, int(0.5 * z_dim // a_dim))
+        action_dim = a_dim * self.action_repeat
+
+        #self.fc = nn.Linear(z_dim + a_dim, h_dim)
+        self.fc = nn.Linear(z_dim + action_dim, h_dim)
         self.fc1 = nn.Linear(h_dim, h_dim)
         self.fc12 = nn.Linear(h_dim, h_dim)
         self.fc2 = nn.Linear(h_dim, z_dim)
@@ -133,7 +155,8 @@ class ForwardModel(nn.Module):
 
     def forward(self, z, a):
         if self.use_action:
-            za = torch.cat([z, a], dim=1)
+            #za = torch.cat([z, a], dim=1)
+            za = torch.cat([z, a.repeat([1, self.action_repeat])], dim=1)
         else:
             za = z
         za = F.elu(self.fc(za))
@@ -294,7 +317,8 @@ class StochasticDecoder(nn.Module):
         z = F.elu(self.deconv2(z))
         z = self.batch4(z)
         z = F.elu(self.deconv3(z))
-        mu = self.deconv4(z)
+        #mu = self.deconv4(z)
+        mu = F.sigmoid(self.deconv4(z))
         std = torch.ones_like(mu).detach()
         return mu, std
 

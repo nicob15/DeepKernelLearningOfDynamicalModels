@@ -8,6 +8,10 @@ def loss_function_VAE(recon_x, x, mu, log_var, beta=1):
     KLD = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
     return BCE + beta*KLD
 
+def loss_bce(recon_x, x):
+    BCE = F.binary_cross_entropy(recon_x, x, reduction='sum') / x.size(0)
+    return BCE
+
 def kl_divergence(mu_1, var_1, mu_2, var_2, dim=1):
     p = td.Independent(td.Normal(mu_1, torch.sqrt(var_1)), dim)
     q = td.Independent(td.Normal(mu_2, torch.sqrt(var_2)), dim)
