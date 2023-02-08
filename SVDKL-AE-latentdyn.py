@@ -150,6 +150,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     folder = os.path.join(directory + '/Data', training_dataset)
     folder_test = os.path.join(directory + '/Data', testing_dataset)
 
+    print("load data")
     data = load_pickle(folder)
     data_test = load_pickle(folder_test)
 
@@ -158,6 +159,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     # likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=0, has_task_noise=False,
     #                                                                   has_global_noise=True)
 
+    print("instantiate models")
     likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=0, has_task_noise=True,
                                                                   has_global_noise=False)
     likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=0, has_task_noise=True,
@@ -269,6 +271,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
 
 if __name__ == "__main__":
 
+    print("enter main function")
     with gpytorch.settings.use_toeplitz(False):
         main(exp=exp, mtype=mtype, noise_level=noise_level, training_dataset=training_dataset,
              testing_dataset=testing_dataset)
