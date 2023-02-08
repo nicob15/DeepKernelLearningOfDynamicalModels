@@ -12,7 +12,7 @@ from matplotlib import cm
 from matplotlib import animation
 import gc
 import matplotlib
-matplotlib.use('TkAgg')
+matplotlib.use('Agg')
 
 def compute_PCA(input, dim=2):
     pca = PCA(n_components=dim)
@@ -145,7 +145,7 @@ def plot_reconstruction_sequences(test_loader, model, save_dir, mtype, step=50, 
     ep_len = 100
     nr_samples = 100
     for i in range(1):
-        data = test_loader.sample_sequence(start_idx=i+3, seq_len=ep_len)
+        data = test_loader.sample_sequence(start_idx=i+403, seq_len=ep_len)
 
         obs = torch.from_numpy(data['obs1']).permute(0, 3, 1, 2).cuda()
         act = torch.from_numpy(data['acts']).cuda()
