@@ -234,7 +234,6 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     if not os.path.exists(save_pth_dir):
         os.makedirs(save_pth_dir)
 
-    training = False
     if training:
         for epoch in range(1, max_epoch):
             with gpytorch.settings.cholesky_jitter(jitter):
@@ -256,6 +255,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     # model.load_state_dict(checkpoint['model'])
     # model.AE_DKL.likelihood.load_state_dict(checkpoint['likelihood'])
     # model.fwd_model_DKL.likelihood.load_state_dict(checkpoint['likelihood_fwd'])
+    plotting = False
     if plotting:
         model.eval()
         model.AE_DKL.likelihood.eval()
