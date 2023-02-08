@@ -239,13 +239,13 @@ def plot_reconstruction_sequences(test_loader, model, save_dir, mtype, step=50, 
                 legend='mean of p($z_{t+1}$|$z_{t}$)',
                 s=15)
 
-        print("make gif")
-        save_frames_as_gif(next_obs.reshape(nr_samples, 3, obs_dim_1, obs_dim_2).permute(0, 2, 3, 1).cpu().numpy(),
-                           save_dir=save_dir1 + '_sequence_' + str(i) + '_.gif', name=save_dir1 + '_sequence_' + str(i) + '_.gif')
-        save_frames_as_gif(next_obs_rec.reshape(nr_samples, 3, obs_dim_1, obs_dim_2).permute(0, 2, 3, 1).cpu().numpy(),
-                           save_dir=save_dir2 + '_sequence_' + str(i) + '_.gif', name=save_dir2 + '_sequence_' + str(i) + '_.gif')
-        save_frames_as_gif(next_obs_rec_mu.reshape(nr_samples, 3, obs_dim_1, obs_dim_2).permute(0, 2, 3, 1).cpu().numpy(),
-                           save_dir=save_dir3 + '_sequence_' + str(i) + '_.gif', name=save_dir3 + '_sequence_' + str(i) + '_.mp4')
+        # print("make gif")
+        # save_frames_as_gif(next_obs.reshape(nr_samples, 3, obs_dim_1, obs_dim_2).permute(0, 2, 3, 1).cpu().numpy(),
+        #                    save_dir=save_dir1 + '_sequence_' + str(i) + '_.gif', name=save_dir1 + '_sequence_' + str(i) + '_.gif')
+        # save_frames_as_gif(next_obs_rec.reshape(nr_samples, 3, obs_dim_1, obs_dim_2).permute(0, 2, 3, 1).cpu().numpy(),
+        #                    save_dir=save_dir2 + '_sequence_' + str(i) + '_.gif', name=save_dir2 + '_sequence_' + str(i) + '_.gif')
+        # save_frames_as_gif(next_obs_rec_mu.reshape(nr_samples, 3, obs_dim_1, obs_dim_2).permute(0, 2, 3, 1).cpu().numpy(),
+        #                    save_dir=save_dir3 + '_sequence_' + str(i) + '_.gif', name=save_dir3 + '_sequence_' + str(i) + '_.mp4')
 
 def plot_traj_single_state_variables(z, std, save_dir, name, plot_uq=False):
 
