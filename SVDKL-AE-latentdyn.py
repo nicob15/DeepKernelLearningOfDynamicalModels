@@ -206,7 +206,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
 
     counter = 0
     train_loader = ReplayBuffer(obs_dim=(obs_dim_1, obs_dim_2, 6), act_dim=act_dim, size=len(data), state_dim=state_dim)
-    for d in data[:15000]:
+    for d in data:
         train_loader.store(add_gaussian_noise(d[0] / 255, noise_level=noise_level, clip=True).astype('float32'),
                            add_gaussian_noise(d[1], noise_level=noise_level_act).astype('float32'),
                            add_gaussian_noise(d[3] / 255, noise_level=noise_level, clip=True).astype('float32'),
@@ -252,10 +252,10 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         torch.save({'model': model.state_dict(), 'likelihood': model.AE_DKL.likelihood.state_dict(),
                     'likelihood_fwd': model.fwd_model_DKL.likelihood.state_dict()}, save_pth_dir + '/DKL_Model_' + date_string + '.pth')
 
-    # checkpoint = torch.load(save_pth_dir + '/DKL_Model_07-02-2023_20h-02m-31s.pth')
-    # model.load_state_dict(checkpoint['model'])
-    # model.AE_DKL.likelihood.load_state_dict(checkpoint['likelihood'])
-    # model.fwd_model_DKL.likelihood.load_state_dict(checkpoint['likelihood_fwd'])
+    checkpoint = torch.load(save_pth_dir + '/DKL_Model_07-02-2023_20h-02m-31s.pth')
+    model.load_state_dict(checkpoint['model'])
+    model.AE_DKL.likelihood.load_state_dict(checkpoint['likelihood'])
+    model.fwd_model_DKL.likelihood.load_state_dict(checkpoint['likelihood_fwd'])
     if plotting:
         model.eval()
         model.AE_DKL.likelihood.eval()
