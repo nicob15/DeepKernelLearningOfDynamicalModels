@@ -76,8 +76,8 @@ def train_DKL(epoch, batch_size, nr_data, train_loader, model, optimizers,
     #     model.fwd_model_DKL.likelihood.noise.item(),
     # ))
 
-    print('====> task noise AE', model.AE_DKL.likelihood.raw_task_noises)
-    print('====> task noise FW', model.fwd_model_DKL.likelihood.raw_task_noises)
+    # print('====> task noise AE', model.AE_DKL.likelihood.raw_task_noises)
+    # print('====> task noise FW', model.fwd_model_DKL.likelihood.raw_task_noises)
 
 
 def train_StochasticVAE(epoch, batch_size, nr_data, train_loader, model, optimizer, beta=1):

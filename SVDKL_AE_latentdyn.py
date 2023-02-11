@@ -160,9 +160,9 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     #                                                                   has_global_noise=True)
 
     print("instantiate models")
-    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=0, has_task_noise=True,
+    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=latent_dim, has_task_noise=True,
                                                                   has_global_noise=False)
-    likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=0, has_task_noise=True,
+    likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=latent_dim, has_task_noise=True,
                                                                       has_global_noise=False)
 
     model = SVDKL_AE_latent_dyn(num_dim=latent_dim, a_dim=act_dim, h_dim=h_dim, grid_size=grid_size, lik=likelihood,
@@ -209,7 +209,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     counter = 0
     print("load training data")
     train_loader = ReplayBuffer(obs_dim=(obs_dim_1, obs_dim_2, 6), act_dim=act_dim, size=len(data), state_dim=state_dim)
-    for d in data:
+    for d in data[:15000]:
         train_loader.store(add_gaussian_noise(d[0] / 255, noise_level=noise_level, clip=True).astype('float32'),
                            add_gaussian_noise(d[1], noise_level=noise_level_act).astype('float32'),
                            add_gaussian_noise(d[3] / 255, noise_level=noise_level, clip=True).astype('float32'),
@@ -236,7 +236,6 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     save_pth_dir = directory + '/Results/' + str(exp) + '/' + str(mtype) + '/Noise_level_' + str(noise_level)
     if not os.path.exists(save_pth_dir):
         os.makedirs(save_pth_dir)
-
     if training:
         print("start training...")
         for epoch in range(1, max_epoch):
@@ -255,11 +254,11 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         torch.save({'model': model.state_dict(), 'likelihood': model.AE_DKL.likelihood.state_dict(),
                     'likelihood_fwd': model.fwd_model_DKL.likelihood.state_dict()}, save_pth_dir + '/DKL_Model_' + date_string + '.pth')
 
-    # checkpoint = torch.load(save_pth_dir + '/DKL_Model_07-02-2023_20h-02m-31s.pth')
+    # checkpoint = torch.load(save_pth_dir + '/DKL_Model_09-02-2023_21h-07m-15s.pth')
     # model.load_state_dict(checkpoint['model'])
     # model.AE_DKL.likelihood.load_state_dict(checkpoint['likelihood'])
     # model.fwd_model_DKL.likelihood.load_state_dict(checkpoint['likelihood_fwd'])
-    plotting = False
+    plotting = True
     if plotting:
         model.eval()
         model.AE_DKL.likelihood.eval()
