@@ -160,9 +160,9 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     #                                                                   has_global_noise=True)
 
     print("instantiate models")
-    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=latent_dim, has_task_noise=True,
+    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=0, has_task_noise=True,
                                                                   has_global_noise=False)
-    likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=latent_dim, has_task_noise=True,
+    likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=0, has_task_noise=True,
                                                                       has_global_noise=False)
 
     model = SVDKL_AE_latent_dyn(num_dim=latent_dim, a_dim=act_dim, h_dim=h_dim, grid_size=grid_size, lik=likelihood,
@@ -236,6 +236,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     save_pth_dir = directory + '/Results/' + str(exp) + '/' + str(mtype) + '/Noise_level_' + str(noise_level)
     if not os.path.exists(save_pth_dir):
         os.makedirs(save_pth_dir)
+
     if training:
         print("start training...")
         for epoch in range(1, max_epoch):
@@ -254,7 +255,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         torch.save({'model': model.state_dict(), 'likelihood': model.AE_DKL.likelihood.state_dict(),
                     'likelihood_fwd': model.fwd_model_DKL.likelihood.state_dict()}, save_pth_dir + '/DKL_Model_' + date_string + '.pth')
 
-    # checkpoint = torch.load(save_pth_dir + '/DKL_Model_09-02-2023_21h-07m-15s.pth')
+    # checkpoint = torch.load(save_pth_dir + '/DKL_Model_11-02-2023_10h-41m-26s.pth')
     # model.load_state_dict(checkpoint['model'])
     # model.AE_DKL.likelihood.load_state_dict(checkpoint['likelihood'])
     # model.fwd_model_DKL.likelihood.load_state_dict(checkpoint['likelihood_fwd'])
