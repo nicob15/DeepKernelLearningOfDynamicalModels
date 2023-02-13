@@ -32,8 +32,8 @@ def train_DKL(epoch, batch_size, nr_data, train_loader, model, optimizers,
         mu_x, var_x, _, _, _, res, mu_target, var_target, res_target, _, _, res_fwd, _ = model(obs, a, next_obs)
 
         # compute vae loss + variational inference
-        #loss_vae = loss_negloglikelihood(mu_x, obs, var_x, dim=3)
-        loss_vae = loss_bce(mu_x, obs)
+        loss_vae = loss_negloglikelihood(mu_x, obs, var_x, dim=3)
+        #loss_vae = loss_bce(mu_x, obs)
         loss_varKL_vae = variational_kl_term(beta=1)
 
         # compute forward model loss (KL divergence) + variational inference
