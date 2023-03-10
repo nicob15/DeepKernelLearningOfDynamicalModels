@@ -28,19 +28,30 @@ python generate_dataset.py --env_name='Pendulum-v1' --training-dataset='pendulum
 python generate_dataset.py --env_name='Pendulum-v1' --training-dataset='pendulum_train.pkl' --seed=2
 ```
 
+**Double Pendulum (Acrobot)**:
+```bash
+python generate_dataset.py --env_name='Acrobot-v1' --training-dataset='doublependulum_train.pkl' --seed=1
+
+python generate_dataset.py --env_name='Acrobot-v1' --training-dataset='doublependulum_train.pkl' --seed=2
+```
+
 ## Train the model
 ```bash
-python SVDKL-AE-latentdyn.py --training-dataset='pendulum_train.pkl' --testing-dataset='pendulum_test.pkl'
+python SVDKL_AE_latentdyn.py --training-dataset='pendulum_train.pkl' --testing-dataset='pendulum_test.pkl'
 ```
 
 ## Cite
 If you use this code in your own work, please cite our paper:
 ```
 @article{botteghi2022deep,
-  title={Deep Kernel Learning of Dynamical Models from High-Dimensional Noisy Data},
+  title={Deep kernel learning of dynamical models from high-dimensional noisy data},
   author={Botteghi, Nicol{\`o} and Guo, Mengwu and Brune, Christoph},
-  journal={arXiv preprint arXiv:2208.12975},
-  year={2022}
+  journal={Scientific reports},
+  volume={12},
+  number={1},
+  pages={21530},
+  year={2022},
+  publisher={Nature Publishing Group UK London}
 }
 
 ```
