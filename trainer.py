@@ -32,8 +32,11 @@ def train_DKL(epoch, batch_size, nr_data, train_loader, model, optimizers,
         mu_x, var_x, _, _, _, res, mu_target, var_target, res_target, _, _, res_fwd, _ = model(obs, a, next_obs)
 
         # compute vae loss + variational inference
-        loss_vae = loss_negloglikelihood(mu_x, obs, var_x, dim=3)
-        #loss_vae = loss_bce(mu_x, obs)
+
+        # use nll or bce
+        #loss_vae = loss_negloglikelihood(mu_x, obs, var_x, dim=3)
+        loss_vae = loss_bce(mu_x, obs)
+
         loss_varKL_vae = variational_kl_term(beta=1)
 
         # compute forward model loss (KL divergence) + variational inference
@@ -44,8 +47,7 @@ def train_DKL(epoch, batch_size, nr_data, train_loader, model, optimizers,
                                                   dim=1)
         loss_varKL_fwd = variational_kl_term_fwd(beta=1)
 
-        # loss = (-) loss_vae + (+) loss_fwd - (-) lossvarKL - (-) lossvarKL_fwd
-        loss = loss_vae - loss_fwd #- loss_varKL_vae - loss_varKL_fwd
+        loss = loss_vae - loss_fwd
 
         loss_varKL_v = -loss_varKL_vae
         loss_varKL_f = -loss_varKL_fwd
@@ -69,16 +71,6 @@ def train_DKL(epoch, batch_size, nr_data, train_loader, model, optimizers,
     print('====> Epoch: {} Average variational loss: {:.4f}'.format(epoch, train_loss_varKL_vae / nr_data))
     print('====> Epoch: {} Average FWD loss: {:.4f}'.format(epoch, train_loss_fwd / nr_data))
     print('====> Epoch: {} Average FWD variational loss: {:.4f}'.format(epoch, train_loss_varKL_fwd / nr_data))
-
-    # print('====> Epoch: %d - noise: %.3f - noise_fwd: %.3f' % (
-    #     epoch,
-    #     model.AE_DKL.likelihood.noise.item(),
-    #     model.fwd_model_DKL.likelihood.noise.item(),
-    # ))
-
-    # print('====> task noise AE', model.AE_DKL.likelihood.raw_task_noises)
-    # print('====> task noise FW', model.fwd_model_DKL.likelihood.raw_task_noises)
-
 
 def train_StochasticVAE(epoch, batch_size, nr_data, train_loader, model, optimizer, beta=1):
 

@@ -13,13 +13,13 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--env-name', type=str, default='Pendulum-v1',
                     help='Environment name.')
-parser.add_argument('--num-episodes', type=int, default=100,
+parser.add_argument('--num-episodes', type=int, default=5,
                     help='Number of episodes.')
 parser.add_argument('--observation-dim-w', type=int, default=84,
                     help='Width of the input measurements (RGB images).')
 parser.add_argument('--observation-dim-h', type=int, default=84,
                     help='Height of the input measurements (RGB images).')
-parser.add_argument('--test', default=False,
+parser.add_argument('--test', default=True,
                     help='Generate training or testing dataset.')
 parser.add_argument('--training-dataset', type=str, default='pendulum_train.pkl',
                     help='Training dataset.')
@@ -78,11 +78,12 @@ for episode in range(num_episodes):
         obs = stack_frames(prev_frame, frame, obs_dim1, obs_dim2)
         if random_policy:
             if env_name == 'Pendulum-v1':
-                action = np.array([0.0])#1#env.action_space.sample() #always apply no torque to theta 2
+                action = env.action_space.sample() #to apply no torque to theta 2 #np.array([0.0])#
             if env_name == 'Acrobot-v1':
                 action = 1 #always apply no torque to theta 2
         else:
             pass
+            # if policy available
             # action = policy(observation)
         next_state, reward, done, info = env.step(action)
         #env.render()

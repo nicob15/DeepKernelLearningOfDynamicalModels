@@ -14,6 +14,9 @@ import gc
 import matplotlib
 matplotlib.use('Agg')
 
+import matplotlib as mpl
+mpl.rcParams['animation.ffmpeg_path'] = '/usr/bin/ffmpeg'
+
 def compute_PCA(input, dim=2):
     pca = PCA(n_components=dim)
     return pca.fit_transform(input)
@@ -35,8 +38,8 @@ def closeAll():
 
 def save_frames_as_gif(frames, save_dir, name):
 
-    #Mess with this to change frame size
-    plt.figure(figsize=(84, 84), dpi=84)
+    #to change frame size
+    plt.figure(figsize=(42, 42), dpi=42)
 
     patch = plt.imshow(frames[0])
     plt.axis('off')
@@ -45,12 +48,11 @@ def save_frames_as_gif(frames, save_dir, name):
         patch.set_data(frames[i])
         gc.collect()
 
-    anim = animation.FuncAnimation(plt.gcf(), animate, frames=len(frames), interval=50, save_count=0,
+    anim = animation.FuncAnimation(plt.gcf(), animate, frames=len(frames), interval=50, save_count=len(frames),
                                    cache_frame_data=True)
 
-    anim.save(save_dir, writer='pillow', fps=10)
-    # FFwriter = animation.FFMpegWriter()
-    # anim.save(name, writer=FFwriter, fps=10)
+    FFwriter = animation.FFMpegWriter(fps=10)
+    anim.save(name, writer=FFwriter)
 
     plt.close()
 
@@ -133,7 +135,7 @@ def plot_3d(z_3d, angle, timestep, upper_3d, save_dir, name='latent_states_3d',
     plt.savefig(save_dir + '/' + name + '_angle.png')
     plt.close()
 
-def plot_reconstruction_sequences(test_loader, model, save_dir, mtype, step=50, obs_dim_1=120, obs_dim_2=120, encoder_type='CNN', latent_dim=50):
+def plot_reconstruction_sequences(test_loader, model, save_dir, mtype, step=50, obs_dim_1=120, obs_dim_2=120, latent_dim=50, make_gif=False):
 
     save_dir = save_dir + '/sequences/'
     if not os.path.exists(save_dir):
@@ -156,6 +158,7 @@ def plot_reconstruction_sequences(test_loader, model, save_dir, mtype, step=50, 
         timesteps = np.arange(0, nr_samples, 1)
 
         next_obs_rec = torch.zeros_like(obs)
+        obs_rec = torch.zeros_like(obs)
         next_obs_rec_mu = torch.zeros_like(obs)
         z_next = torch.zeros((nr_samples, latent_dim)).cuda()
         mu_next = torch.zeros((nr_samples, latent_dim))
@@ -170,12 +173,17 @@ def plot_reconstruction_sequences(test_loader, model, save_dir, mtype, step=50, 
         next_obs_rec_mu[0], _ = model.AE_DKL.decoder(mu_next_2[0].unsqueeze(dim=0))
 
         for j in range(ep_len-1):
+            obs_rec[j], _, _, _, _, _, _, _, _, _, _, _, _ = model(obs[j].unsqueeze(dim=0), act[j].unsqueeze(dim=0),
+                                                                   next_obs[j+1].unsqueeze(dim=0))
+
             next_obs_rec[j+1], z_next[j+1], mu_next[j+1], res_next = model.predict_dynamics(z_next[j].unsqueeze(dim=0), act[j+1].unsqueeze(dim=0), samples=10)
             _, upper[j+1] = model.fwd_model_DKL.likelihood(res_next).confidence_region()
 
             next_obs_rec_mu[j+1], _, mu_next_2[j+1], res_next = model.predict_dynamics_mean(mu_next_2[j].unsqueeze(dim=0), act[j+1].unsqueeze(dim=0))
             _, upper_2[j + 1] = model.fwd_model_DKL.likelihood(res_next).confidence_region()
 
+        obs_rec = obs_rec[:nr_samples, 3:6, :, :]
+        obs = obs[:nr_samples, 3:6, :, :]
         next_obs = next_obs[:nr_samples, 3:6, :, :]
         next_obs_rec = next_obs_rec[:nr_samples, 3:6, :, :]
         next_obs_rec_mu = next_obs_rec_mu[:nr_samples, 3:6, :, :]
@@ -193,9 +201,18 @@ def plot_reconstruction_sequences(test_loader, model, save_dir, mtype, step=50, 
         mu_2 = mu_next_2.cpu().numpy()
         upper_2 = upper_2.cpu().numpy()
 
-        plot_traj_single_state_variables(z_next, None, save_dir, name='trajectory_over_time', plot_uq=False)
-        plot_traj_single_state_variables(mu, upper, save_dir, name='trajectory_over_time_UQ', plot_uq=True)
-        plot_traj_single_state_variables(angle.reshape(-1, 1), None, save_dir, name='true_angle_over_time', plot_uq=False)
+        plot_traj_single_state_variables(z_next, None, save_dir, name='trajectory_over_time', plot_uq=False,
+                                         name1='trajectory latent variable over time')
+        plot_traj_single_state_variables(mu, upper, save_dir, name='trajectory_over_time_UQ', plot_uq=True,
+                                         name1='trajectory latent variable over time with UQ')
+        plot_traj_single_state_variables(angle.reshape(-1, 1), None, save_dir, name='true_angle_over_time',
+                                         plot_uq=False, latent_var=False, name1='True angle over time')
+        plot_traj_single_state_variables(s[:, 0].reshape(-1, 1), None, save_dir, name='true_x_over_time',
+                                         plot_uq=False, latent_var=False, name1='True x position over time')
+        plot_traj_single_state_variables(s[:, 1].reshape(-1, 1), None, save_dir, name='true_y_over_time',
+                                         plot_uq=False, latent_var=False, name1='True y position over time')
+        plot_traj_single_state_variables(s[:, 2].reshape(-1, 1), None, save_dir, name='true_vel_over_time',
+                                         plot_uq=False, latent_var=False, name1='True velocity over time')
 
         z_next_2d = TSNE(n_components=2, learning_rate='auto').fit_transform(z_next)
         z_next_3d = TSNE(n_components=3, learning_rate='auto').fit_transform(z_next)
@@ -204,8 +221,8 @@ def plot_reconstruction_sequences(test_loader, model, save_dir, mtype, step=50, 
         upper_2d = TSNE(n_components=2, learning_rate='auto').fit_transform(upper / 2)
         upper_3d = TSNE(n_components=3, learning_rate='auto').fit_transform(upper / 2)
 
-        upper_2d = upper_2d / 2
-        upper_3d = upper_3d / 10
+        upper_2d = upper_2d / 5
+        upper_3d = upper_3d / 5
 
         plot_2d(z_next_2d, angle, timesteps, upper_2d, save_dir,
                 name='latent_next_states_2d_' + str(i), plt_ellipse=False,
@@ -227,8 +244,8 @@ def plot_reconstruction_sequences(test_loader, model, save_dir, mtype, step=50, 
         upper_2d = TSNE(n_components=2, learning_rate='auto').fit_transform(upper_2 / 2)
         upper_3d = TSNE(n_components=3, learning_rate='auto').fit_transform(upper_2 / 2)
 
-        upper_2d = upper_2d / 2
-        upper_3d = upper_3d / 10
+        upper_2d = upper_2d / 5
+        upper_3d = upper_3d / 5
 
         plot_2d(mu_fwd_2d, angle, timesteps, upper_2d/10, save_dir,
                 name='latent_next_states_2d_mean_over_time_' + str(i), plt_ellipse=True,
@@ -239,17 +256,21 @@ def plot_reconstruction_sequences(test_loader, model, save_dir, mtype, step=50, 
                 legend='mean of p($z_{t+1}$|$z_{t}$)',
                 s=15)
 
-        make_gif = False
         if make_gif:
             print("make gif")
+            save_frames_as_gif(obs.reshape(nr_samples, 3, obs_dim_1, obs_dim_2).permute(0, 2, 3, 1).cpu().numpy(),
+                               save_dir=save_dir1 + '_obs_sequence_' + str(i) + '_.gif', name=save_dir1 + '_obs_sequence_' + str(i) + '_.mp4')
+            save_frames_as_gif(obs_rec.reshape(nr_samples, 3, obs_dim_1, obs_dim_2).permute(0, 2, 3, 1).cpu().numpy(),
+                               save_dir=save_dir1 + '_obs_rec_sequence_' + str(i) + '_.gif',
+                               name=save_dir1 + '_obs_rec_sequence_' + str(i) + '_.mp4')
             save_frames_as_gif(next_obs.reshape(nr_samples, 3, obs_dim_1, obs_dim_2).permute(0, 2, 3, 1).cpu().numpy(),
-                               save_dir=save_dir1 + '_sequence_' + str(i) + '_.gif', name=save_dir1 + '_sequence_' + str(i) + '_.gif')
+                               save_dir=save_dir1 + '_sequence_' + str(i) + '_.gif', name=save_dir1 + '_sequence_' + str(i) + '_.mp4')
             save_frames_as_gif(next_obs_rec.reshape(nr_samples, 3, obs_dim_1, obs_dim_2).permute(0, 2, 3, 1).cpu().numpy(),
-                               save_dir=save_dir2 + '_sequence_' + str(i) + '_.gif', name=save_dir2 + '_sequence_' + str(i) + '_.gif')
+                               save_dir=save_dir2 + '_sequence_' + str(i) + '_.gif', name=save_dir2 + '_sequence_' + str(i) + '_.mp4')
             save_frames_as_gif(next_obs_rec_mu.reshape(nr_samples, 3, obs_dim_1, obs_dim_2).permute(0, 2, 3, 1).cpu().numpy(),
                                save_dir=save_dir3 + '_sequence_' + str(i) + '_.gif', name=save_dir3 + '_sequence_' + str(i) + '_.mp4')
 
-def plot_traj_single_state_variables(z, std, save_dir, name, plot_uq=False):
+def plot_traj_single_state_variables(z, std, save_dir, name, plot_uq=False, latent_var=True, name1=''):
 
     save_dir = save_dir + '/variables'
     if not os.path.exists(save_dir):
@@ -258,8 +279,11 @@ def plot_traj_single_state_variables(z, std, save_dir, name, plot_uq=False):
     timesteps = np.arange(0, z.shape[0], 1)
     for i in range(z.shape[1]):
         fig, ax = plt.subplots(1)
-        fig.suptitle(name)
-        legend1 = str(i) +'-th_latent_state_variable'
+        fig.suptitle(name1)
+        if latent_var:
+            legend1 = str(i) + '-th latent state variable'
+        else:
+            legend1 = 'true state variable'
         if plot_uq:
             ax.fill_between(timesteps, z[:, i] - std[:, i] / 2, z[:, i] + std[:, i] / 2, facecolor='blue', alpha=0.5)
         p1 = ax.scatter(timesteps, z[:, i], c=timesteps, cmap='cool')

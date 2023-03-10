@@ -150,16 +150,9 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
     folder = os.path.join(directory + '/Data', training_dataset)
     folder_test = os.path.join(directory + '/Data', testing_dataset)
 
-    print("load data")
     data = load_pickle(folder)
     data_test = load_pickle(folder_test)
 
-    # likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=0, has_task_noise=False,
-    #                                                               has_global_noise=True)
-    # likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=0, has_task_noise=False,
-    #                                                                   has_global_noise=True)
-
-    print("instantiate models")
     likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=0, has_task_noise=True,
                                                                   has_global_noise=False)
     likelihood_fwd = gpytorch.likelihoods.MultitaskGaussianLikelihood(latent_dim, rank=0, has_task_noise=True,
@@ -186,9 +179,7 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         {'params': model.AE_DKL.decoder.parameters()},
         {'params': model.fwd_model_DKL.fwd_model.parameters()},
         {'params': model.AE_DKL.gp_layer.hyperparameters(), 'lr': lr_gp},
-        #{'params': model.AE_DKL.gp_layer.variational_parameters(), 'lr': lr_gp_var},
         {'params': model.fwd_model_DKL.gp_layer_2.hyperparameters(), 'lr': lr_gp},
-        #{'params': model.fwd_model_DKL.gp_layer_2.variational_parameters(), 'lr': lr_gp_var},
         {'params': model.AE_DKL.likelihood.parameters(), 'lr': lr_gp_lik},
         {'params': model.fwd_model_DKL.likelihood.parameters(), 'lr': lr_gp_lik},
         ], lr=lr, weight_decay=reg_coef)
@@ -255,11 +246,12 @@ def main(exp='Pendulum', mtype='DKL', noise_level=0.0, training_dataset='pendulu
         torch.save({'model': model.state_dict(), 'likelihood': model.AE_DKL.likelihood.state_dict(),
                     'likelihood_fwd': model.fwd_model_DKL.likelihood.state_dict()}, save_pth_dir + '/DKL_Model_' + date_string + '.pth')
 
-    # checkpoint = torch.load(save_pth_dir + '/DKL_Model_11-02-2023_10h-41m-26s.pth')
+    # to load previously trained models (name = 'DKL_Model_ + date_string')
+    # checkpoint = torch.load(save_pth_dir + '/name.pth')
     # model.load_state_dict(checkpoint['model'])
     # model.AE_DKL.likelihood.load_state_dict(checkpoint['likelihood'])
     # model.fwd_model_DKL.likelihood.load_state_dict(checkpoint['likelihood_fwd'])
-    plotting = True
+
     if plotting:
         model.eval()
         model.AE_DKL.likelihood.eval()

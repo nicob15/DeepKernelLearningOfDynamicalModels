@@ -142,10 +142,10 @@ class ForwardModel(nn.Module):
 
         self.use_action = use_action
 
+        # to avoid losing the action information for big z_dim
         self.action_repeat = max(1, int(0.5 * z_dim // a_dim))
         action_dim = a_dim * self.action_repeat
 
-        #self.fc = nn.Linear(z_dim + a_dim, h_dim)
         self.fc = nn.Linear(z_dim + action_dim, h_dim)
         self.fc1 = nn.Linear(h_dim, h_dim)
         self.fc12 = nn.Linear(h_dim, h_dim)
@@ -155,7 +155,6 @@ class ForwardModel(nn.Module):
 
     def forward(self, z, a):
         if self.use_action:
-            #za = torch.cat([z, a], dim=1)
             za = torch.cat([z, a.repeat([1, self.action_repeat])], dim=1)
         else:
             za = z
@@ -163,35 +162,6 @@ class ForwardModel(nn.Module):
         za = F.elu(self.fc1(za))
         features = self.fc2(za)
         return features
-
-class Encoder(nn.Module):
-    def __init__(self, z_dim=20, h_dim=256):
-        super(Encoder, self).__init__()
-
-        self.conv1 = nn.Conv2d(6, 32, (3, 3), stride=(2, 2))
-        self.conv2 = nn.Conv2d(32, 32, (3, 3), stride=(1, 1))
-        self.batch1 = nn.BatchNorm2d(32)
-        self.conv3 = nn.Conv2d(32, 32, (3, 3), stride=(1, 1))
-        self.conv4 = nn.Conv2d(32, 32, (3, 3), stride=(1, 1))
-        self.batch2 = nn.BatchNorm2d(32)
-        out_dim = OUT_DIM[4]
-        self.fc = nn.Linear(32 * out_dim * out_dim, h_dim)
-        self.fc1 = nn.Linear(h_dim, z_dim)
-
-    def encoder(self, x):
-        x = F.elu(self.conv1(x))
-        x = F.elu(self.conv2(x))
-        x = self.batch1(x)
-        x = F.elu(self.conv3(x))
-        x = F.elu(self.conv4(x))
-        x = self.batch2(x)
-        x = torch.flatten(x, start_dim=1)
-        x = F.elu(self.fc(x))
-        x = self.fc1(x)
-        return x
-
-    def forward(self, x):
-        return self.encoder(x)
 
 class ForwardModelVAE(nn.Module):
     def __init__(self, z_dim=20, h_dim=256, a_dim=1, fixed_std=True, min_sigma=1e-4, max_sigma=1e1):
@@ -255,6 +225,63 @@ class EncoderVAE(nn.Module):
         mu, std = self.encoder(x)
         return mu, std, self.sampling(mu, std)
 
+class StochasticDecoder(nn.Module):
+    def __init__(self, z_dim=20):
+        super(StochasticDecoder, self).__init__()
+
+        # decoder part
+        out_dim = OUT_DIM[4]
+        self.fcz = nn.Linear(z_dim, 32 * out_dim * out_dim)
+        self.unflatten = nn.Unflatten(dim=1, unflattened_size=(32, out_dim, out_dim))
+        self.deconv1 = nn.ConvTranspose2d(32, 32, (3, 3), stride=(1, 1))
+        self.deconv2 = nn.ConvTranspose2d(32, 32, (3, 3), stride=(1, 1))
+        self.batch3 = nn.BatchNorm2d(32)
+        self.deconv3 = nn.ConvTranspose2d(32, 32, (3, 3), stride=(1, 1))
+        self.deconv4 = nn.ConvTranspose2d(32, 6, (3, 3), stride=(2, 2), output_padding=(1, 1))
+        self.batch4 = nn.BatchNorm2d(32)
+
+    def sampling(self, mu, log_var):
+        std = torch.exp(0.5 * log_var)
+        eps = torch.randn_like(std)
+        return eps.mul(std).add_(mu)  # return z sample
+
+    def decoder(self, z):
+        z = F.elu(self.fcz(z))
+        z = self.unflatten(z)
+        z = self.batch3(z)
+        z = F.elu(self.deconv1(z))
+        z = F.elu(self.deconv2(z))
+        z = self.batch4(z)
+        z = F.elu(self.deconv3(z))
+        mu = F.sigmoid(self.deconv4(z))
+        std = torch.ones_like(mu).detach()
+        return mu, std
+
+    def forward(self, x):
+        return self.decoder(x)
+
+class VAE(nn.Module):
+    def __init__(self, z_dim, h_dim, a_dim):
+        super(VAE, self).__init__()
+
+        self.encoder = EncoderVAE(z_dim)
+        self.decoder = Decoder(z_dim)
+
+        self.fwd_model = ForwardModelVAE(z_dim, h_dim, a_dim)
+
+    def sampling(self, mu, log_var):
+        std = torch.exp(0.5 * log_var)
+        eps = torch.randn_like(std)
+        return eps.mul(std).add_(mu)
+
+    def forward(self, x, a, x_next):
+        mu, std = self.encoder(x)
+        mu_target, std_target = self.encoder(x_next)
+        z = self.sampling(mu, torch.log(torch.square(std)))
+        mu_next, std_next = self.fwd_model(z, a)
+        return self.decoder(z), mu, std, z, mu_target, std_target, mu_next, std_next
+
+
 class Decoder(nn.Module):
     def __init__(self, z_dim=20):
         super(Decoder, self).__init__()
@@ -289,59 +316,32 @@ class Decoder(nn.Module):
     def forward(self, x):
         return self.decoder(x)
 
-class StochasticDecoder(nn.Module):
-    def __init__(self, z_dim=20):
-        super(StochasticDecoder, self).__init__()
 
-        # decoder part
+class Encoder(nn.Module):
+    def __init__(self, z_dim=20, h_dim=256):
+        super(Encoder, self).__init__()
+
+        self.conv1 = nn.Conv2d(6, 32, (3, 3), stride=(2, 2))
+        self.conv2 = nn.Conv2d(32, 32, (3, 3), stride=(1, 1))
+        self.batch1 = nn.BatchNorm2d(32)
+        self.conv3 = nn.Conv2d(32, 32, (3, 3), stride=(1, 1))
+        self.conv4 = nn.Conv2d(32, 32, (3, 3), stride=(1, 1))
+        self.batch2 = nn.BatchNorm2d(32)
         out_dim = OUT_DIM[4]
-        self.fcz = nn.Linear(z_dim, 32 * out_dim * out_dim)
-        self.unflatten = nn.Unflatten(dim=1, unflattened_size=(32, out_dim, out_dim))
-        self.deconv1 = nn.ConvTranspose2d(32, 32, (3, 3), stride=(1, 1))
-        self.deconv2 = nn.ConvTranspose2d(32, 32, (3, 3), stride=(1, 1))
-        self.batch3 = nn.BatchNorm2d(32)
-        self.deconv3 = nn.ConvTranspose2d(32, 32, (3, 3), stride=(1, 1))
-        self.deconv4 = nn.ConvTranspose2d(32, 6, (3, 3), stride=(2, 2), output_padding=(1, 1))
-        self.batch4 = nn.BatchNorm2d(32)
+        self.fc = nn.Linear(32 * out_dim * out_dim, h_dim)
+        self.fc1 = nn.Linear(h_dim, z_dim)
 
-    def sampling(self, mu, log_var):
-        std = torch.exp(0.5 * log_var)
-        eps = torch.randn_like(std)
-        return eps.mul(std).add_(mu)  # return z sample
-
-    def decoder(self, z):
-        z = F.elu(self.fcz(z))
-        z = self.unflatten(z)
-        z = self.batch3(z)
-        z = F.elu(self.deconv1(z))
-        z = F.elu(self.deconv2(z))
-        z = self.batch4(z)
-        z = F.elu(self.deconv3(z))
-        #mu = self.deconv4(z)
-        mu = F.sigmoid(self.deconv4(z))
-        std = torch.ones_like(mu).detach()
-        return mu, std
+    def encoder(self, x):
+        x = F.elu(self.conv1(x))
+        x = F.elu(self.conv2(x))
+        x = self.batch1(x)
+        x = F.elu(self.conv3(x))
+        x = F.elu(self.conv4(x))
+        x = self.batch2(x)
+        x = torch.flatten(x, start_dim=1)
+        x = F.elu(self.fc(x))
+        x = self.fc1(x)
+        return x
 
     def forward(self, x):
-        return self.decoder(x)
-
-class VAE(nn.Module):
-    def __init__(self, z_dim, h_dim, a_dim):
-        super(VAE, self).__init__()
-
-        self.encoder = EncoderVAE(z_dim)
-        self.decoder = Decoder(z_dim)
-
-        self.fwd_model = ForwardModelVAE(z_dim, h_dim, a_dim)
-
-    def sampling(self, mu, log_var):
-        std = torch.exp(0.5 * log_var)
-        eps = torch.randn_like(std)
-        return eps.mul(std).add_(mu)
-
-    def forward(self, x, a, x_next):
-        mu, std = self.encoder(x)
-        mu_target, std_target = self.encoder(x_next)
-        z = self.sampling(mu, torch.log(torch.square(std)))
-        mu_next, std_next = self.fwd_model(z, a)
-        return self.decoder(z), mu, std, z, mu_target, std_target, mu_next, std_next
+        return self.encoder(x)
